@@ -5,6 +5,64 @@ class GoogleSheetsService {
         // No API key needed anymore - using public CSV export
     }
 
+    async checkAvailability(url) {
+        const spreadsheetId = this.extractSheetId(url);
+        if (!spreadsheetId) {
+            throw new Error('Invalid Google Sheets URL. Please provide a valid sheet ID or URL.');
+        }
+        const apiKey = process.env.GOOGLE_SHEETS_API_KEY;
+        if (!apiKey) {
+            throw new Error('Google Sheets API key not configured. Please set GOOGLE_SHEETS_API_KEY in your .env file');
+        }
+
+        try {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?key=${apiKey}`;
+
+
+            const response = await axios.get(url, {
+                timeout: 10000,
+                headers: {
+                    'User-Agent': 'Auto-Store-Creator/1.0'
+                }
+            });
+
+            if (response.status !== 200) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const spreadsheet = response.data;
+            const title = spreadsheet.properties?.title || '';
+
+
+            const includesTemp = title.toLowerCase().includes('temp');
+
+            return {
+                accessible: true,
+                title: title,
+                includesTemp: includesTemp,
+                sheetCount: spreadsheet.sheets?.length || 0,
+                sheets: spreadsheet.sheets?.map(sheet => ({
+                    title: sheet.properties?.title || '',
+                    sheetId: sheet.properties?.sheetId || 0
+                })) || []
+            };
+
+        } catch (error) {
+            console.error(`Error checking sheet availability:`, error);
+
+            if (error.response) {
+                if (error.response.status === 403) {
+                    throw new Error(`Access denied to spreadsheet ${spreadsheetId}. Please make sure the sheet is publicly accessible or the API key has proper permissions.`);
+                } else if (error.response.status === 404) {
+                    throw new Error(`Spreadsheet ${spreadsheetId} not found. Please check the sheet ID.`);
+                } else if (error.response.status === 400) {
+                    throw new Error(`Invalid spreadsheet ID: ${spreadsheetId}`);
+                }
+            }
+            throw new Error(`Failed to check sheet availability: ${error.message}`);
+        }
+    }
+
     extractSheetId(url) {
         // Extract sheet ID from Google Sheets URL - handles both regular and pubhtml formats
 

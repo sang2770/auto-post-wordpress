@@ -585,6 +585,12 @@ async function checkForChanges() {
             return;
         }
 
+        const isAvailable = await googleSheetsService.checkAvailability(config.storeSheetsUrl);
+        if (!isAvailable?.accessible) {
+            console.log('Store Sheets URL is not accessible, skipping check');
+            return;
+        }
+
         const currentData = await googleSheetsService.fetchSheetDataFromSeparateUrls(config.storeSheetsUrl, config.storeDetailSheetsUrl);
         const lastData = await storageService.getLastData();
 
