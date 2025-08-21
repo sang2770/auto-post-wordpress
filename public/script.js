@@ -319,6 +319,12 @@ class AutoStoreCreator {
                     <div class="stat-item success">
                         <strong>Coupons Created:</strong> ${results.couponsCreated || 0}
                     </div>
+                    <div class="stat-item success">
+                        <strong>Images Processed:</strong> ${results.imagesProcessed || 0}
+                    </div>
+                    <div class="stat-item warning">
+                        <strong>Images Skipped:</strong> ${results.imagesSkipped || 0}
+                    </div>
                     <div class="stat-item warning">
                         <strong>Duplicates Skipped:</strong> ${results.storesSkipped}
                     </div>
@@ -349,6 +355,7 @@ class AutoStoreCreator {
                     <i class="fas fa-check-circle"></i>
                     Store creation process completed successfully!
                     ${results.couponsCreated > 0 ? `<br><small>Created ${results.couponsCreated} coupons across all stores</small>` : ''}
+                    ${results.imagesProcessed > 0 ? `<br><small>Processed ${results.imagesProcessed} featured images</small>` : ''}
                 </div>
             </div>
         `;

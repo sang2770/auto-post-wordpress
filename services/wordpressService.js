@@ -1,4 +1,5 @@
 const axios = require('axios');
+const ImageService = require('./imageService');
 
 class WordPressService {
     constructor() {
@@ -9,6 +10,13 @@ class WordPressService {
         if (!this.baseURL || !this.username || !this.password) {
             throw new Error('WordPress configuration missing. Please check WORDPRESS_URL, WORDPRESS_USERNAME, and WORDPRESS_PASSWORD in .env file');
         }
+
+        // Initialize image service
+        this.imageService = new ImageService({
+            url: this.baseURL,
+            username: this.username,
+            password: this.password
+        });
 
         this.apiClient = axios.create({
             baseURL: `${this.baseURL}/wp-json/wp/v2`,
@@ -24,6 +32,16 @@ class WordPressService {
 
     async createStore(storeData) {
         try {
+            // Process featured image if provided
+            let featuredImageId = null;
+            if (storeData.image) {
+                console.log(`Processing featured image for store: ${storeData.name}`);
+                featuredImageId = await this.imageService.processStoreImage(storeData.image, storeData.name);
+                if (featuredImageId) {
+                    console.log(`Featured image uploaded with ID: ${featuredImageId}`);
+                }
+            }
+
             const postData = {
                 title: storeData.name,
                 status: 'publish',
@@ -38,13 +56,17 @@ class WordPressService {
                     title_page: storeData.name || ''
                 }
             };
-            console.log('Creating store with data:', postData);
 
+            // Set featured image if we have one
+            if (featuredImageId) {
+                postData.featured_media = featuredImageId;
+            }
             const response = await this.apiClient.post('/store', postData);
             return {
                 success: true,
                 message: `Store "${storeData.name}" created successfully`,
-                data: response.data
+                data: response.data,
+                featuredImageId: featuredImageId
             };
         } catch (error) {
             if (error.response) {
@@ -109,19 +131,23 @@ class WordPressService {
             let hasMore = true;
 
             while (hasMore) {
-                const response = await this.apiClient.get(`/store?per_page=100&page=${page}`);
-                const stores = response.data;
+                try {
+                    const response = await this.apiClient.get(`/store?per_page=100&page=${page}`);
+                    const stores = response.data;
 
-                if (stores.length === 0) {
-                    hasMore = false;
-                } else {
-                    allStores = allStores.concat(stores);
-                    page++;
-                }
+                    if (stores.length === 0) {
+                        hasMore = false;
+                    } else {
+                        allStores = allStores.concat(stores);
+                        page++;
+                    }
 
-                // Safety break to avoid infinite loops
-                if (page > 50) {
-                    console.warn('Stopped fetching after 50 pages (5000 stores)');
+                    // Safety break to avoid infinite loops
+                    if (page > 50) {
+                        console.warn('Stopped fetching after 50 pages (5000 stores)');
+                        break;
+                    }
+                } catch (error) {
                     break;
                 }
             }
@@ -141,7 +167,6 @@ class WordPressService {
         for (const existingStore of existingStores) {
             const existingTitle = existingStore.title?.rendered || existingStore.title || '';
             const normalizedExistingName = existingTitle.toLowerCase().trim();
-
             if (normalizedNewName === normalizedExistingName) {
                 return {
                     isDuplicate: true,
@@ -267,11 +292,18 @@ class WordPressService {
                 storeData: storeResult.data,
                 coupons: couponResults,
                 totalCoupons: coupons.length,
-                successfulCoupons: couponResults.filter(c => c.success).length
+                successfulCoupons: couponResults.filter(c => c.success).length,
+                featuredImageId: storeResult.featuredImageId
             };
         } catch (error) {
             console.error('Error creating store with coupons:', error);
             throw error;
+        }
+    }
+
+    cleanupImageResources() {
+        if (this.imageService) {
+            this.imageService.cleanupTempDirectory();
         }
     }
 }

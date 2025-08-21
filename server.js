@@ -251,10 +251,14 @@ async function processStores(currentData, options = {}) {
     }
 
     const newStores = googleSheetsService.processSheetData(currentData);
+    console.log("newStores:", newStores);
+
     let createdCount = 0;
     let skippedCount = 0;
     let errors = [];
     let totalCouponsCreated = 0;
+    let imagesProcessed = 0;
+    let imagesSkipped = 0;
 
     for (const store of newStores) {
         try {
@@ -272,6 +276,14 @@ async function processStores(currentData, options = {}) {
                 const result = await wordpressService.createStoreWithCoupons(store);
                 createdCount++;
                 totalCouponsCreated += result.successfulCoupons;
+
+                // Track image processing
+                if (result.featuredImageId) {
+                    imagesProcessed++;
+                } else if (store.image) {
+                    imagesSkipped++;
+                }
+
                 console.log(`Created store: ${store.name} with ${result.successfulCoupons}/${result.totalCoupons} coupons`);
 
                 // Log any coupon creation failures
@@ -288,8 +300,16 @@ async function processStores(currentData, options = {}) {
                 }
             } else {
                 // Create store without coupons
-                await wordpressService.createStore(store);
+                const result = await wordpressService.createStore(store);
                 createdCount++;
+
+                // Track image processing
+                if (result.featuredImageId) {
+                    imagesProcessed++;
+                } else if (store.image) {
+                    imagesSkipped++;
+                }
+
                 console.log(`Created store: ${store.name} (no coupons)`);
             }
         } catch (error) {
@@ -297,6 +317,9 @@ async function processStores(currentData, options = {}) {
             errors.push({ storeName: store.name, error: error.message, type: 'store' });
         }
     }
+
+    // Cleanup image resources
+    wordpressService.cleanupImageResources();
 
     // Save the data as processed
     await storageService.saveLastData(currentData);
@@ -312,6 +335,8 @@ async function processStores(currentData, options = {}) {
         totalStores: newStores.length,
         existingStoresCount: existingStores.length,
         totalCouponsCreated: totalCouponsCreated,
+        imagesProcessed: imagesProcessed,
+        imagesSkipped: imagesSkipped,
         errors: errors,
         hasChanges: true,
         ...(isManualTrigger && { manualTrigger: true })
@@ -319,7 +344,7 @@ async function processStores(currentData, options = {}) {
     await storageService.saveLastRun(runInfo);
 
     const logMessage = isManualTrigger ? 'Manual creation' : 'Processing';
-    console.log(`${logMessage} complete. Created ${createdCount} stores with ${totalCouponsCreated} coupons, skipped ${skippedCount} duplicates.`);
+    console.log(`${logMessage} complete. Created ${createdCount} stores with ${totalCouponsCreated} coupons, ${imagesProcessed} images processed, skipped ${skippedCount} duplicates.`);
 
     return {
         storesCreated: createdCount,
@@ -327,6 +352,8 @@ async function processStores(currentData, options = {}) {
         totalFromSheet: newStores.length,
         existingInWordPress: existingStores.length,
         couponsCreated: totalCouponsCreated,
+        imagesProcessed: imagesProcessed,
+        imagesSkipped: imagesSkipped,
         errors: errors,
         totalRows: currentData.totalRows || 0,
         storeWithCouponsRows: currentData.storeListWithCoupons?.length || 0,

@@ -171,7 +171,7 @@ class GoogleSheetsService {
                     description: row[4] || '',
                     about: '',
                     guide: row[7] || '',
-                    qa: (row[11] || '') + (row[15] || '')
+                    qa: (row[11] || '') + (row[15] || ''),
                 });
             }
         });
@@ -193,12 +193,14 @@ class GoogleSheetsService {
                 const discountBag = row[5] || '';
                 const couponDescription = row[9] || '';
                 const storeLink = row[3] || '';
+                const storeImage = row[0] || ''; // Add store image from column 3 (index 2)
 
                 // Add store to unique store list
                 if (!storeMap.has(normalizedStoreName)) {
                     storeMap.set(normalizedStoreName, {
                         name: storeName,
                         link: storeLink,
+                        image: storeImage
                     });
                 }
 
@@ -232,13 +234,16 @@ class GoogleSheetsService {
 
         // Create final store objects with all data
         storeMap.forEach((storeData, normalizedName) => {
+            console.log("storeData:", storeData);
+
             // Get store info from sheet2
             const info = storeInfoMap.get(normalizedName) || {
                 name: storeData.name,
                 description: '',
                 about: '',
                 guide: '',
-                qa: ''
+                qa: '',
+                image: ''
             };
 
             // Get coupons for this store
@@ -251,6 +256,7 @@ class GoogleSheetsService {
                 about: info.about,
                 qa: info.qa,
                 description: info.description,
+                image: storeData.image || info.image, // Prefer image from storeListWithCoupons, fallback to storeInfo
                 coupons: coupons
             };
 
