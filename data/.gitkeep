@@ -1,0 +1,9 @@
+# Data Directory
+
+This directory stores the application's configuration and state files:
+
+- `config.json` - Google Sheets configuration
+- `lastData.json` - Last fetched data from Google Sheets
+- `lastRun.json` - Information about the last polling run
+
+These files are automatically created and managed by the application.

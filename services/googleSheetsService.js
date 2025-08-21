@@ -1,0 +1,335 @@
+const axios = require('axios');
+
+class GoogleSheetsService {
+    constructor() {
+        // No API key needed anymore - using public CSV export
+    }
+
+    extractSheetId(url) {
+        // Extract sheet ID from Google Sheets URL - handles both regular and pubhtml formats
+
+        // First try regular format: /spreadsheets/d/SHEET_ID
+        let match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (match) {
+            return match[1];
+        }
+
+        // Try pubhtml format: /d/e/2PACX-SHEET_ID/pubhtml
+        match = url.match(/\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)\/pubhtml/);
+        if (match) {
+            return match[1];
+        }
+
+        return null;
+    }
+
+    // Extract GID from URL if present
+    extractGid(url) {
+        const match = url.match(/[#&]gid=([0-9]+)/);
+        return match ? match[1] : '0';
+    }
+
+    // Convert full Google Sheets URL to CSV export URL
+    getCSVUrlFromFullUrl(url) {
+        const sheetId = this.extractSheetId(url);
+        const gid = this.extractGid(url);
+
+        if (!sheetId) {
+            throw new Error('Invalid Google Sheets URL');
+        }
+
+        // Check if this is a pubhtml format sheet ID (starts with 2PACX-)
+        if (sheetId.startsWith('2PACX-')) {
+            return `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?output=csv&gid=${gid}`;
+        } else {
+            // Regular format
+            return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+        }
+    }
+
+    // Convert Google Sheets URL to CSV export URL
+    getCSVUrl(sheetId, gid = null) {
+        // Check if this is a pubhtml format sheet ID (starts with 2PACX-)
+        if (sheetId.startsWith('2PACX-')) {
+            return `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?output=csv&gid=${gid}`;
+        } else {
+            // Regular format
+            return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+        }
+    }
+
+    // Extract GID from URL if present
+    extractGid(url) {
+        const match = url.match(/[#&]gid=([0-9]+)/);
+        return match ? match[1] : '0';
+    }
+
+    async fetchSingleSheet(sheetId, gid) {
+        try {
+            const csvUrl = this.getCSVUrl(sheetId, gid);
+            console.log(`Fetching data from CSV URL (GID ${gid}): ${csvUrl}`);
+
+            const response = await axios.get(csvUrl, {
+                timeout: 10000,
+                headers: {
+                    'User-Agent': 'Auto-Store-Creator/1.0'
+                }
+            });
+
+            if (response.status !== 200) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            // Parse CSV data
+            const csvData = response.data;
+            const rows = this.parseCSV(csvData);
+
+            if (!rows || rows.length === 0) {
+                return [];
+            }
+
+            // Skip header row and return data
+            console.log(`Successfully fetched ${rows.length - 1} rows from sheet GID ${gid}`);
+            return rows.slice(1);
+        } catch (error) {
+            console.error(`Error fetching sheet GID ${gid}:`, error);
+
+            if (error.response) {
+                if (error.response.status === 403) {
+                    throw new Error(`Sheet GID ${gid} is not publicly accessible. Please publish the sheet to the web and make it viewable by anyone with the link.`);
+                } else if (error.response.status === 404) {
+                    throw new Error(`Sheet GID ${gid} not found. Please check the sheet ID and make sure the sheet is published to the web.`);
+                }
+            }
+
+            throw new Error(`Failed to fetch sheet GID ${gid}: ${error.message}`);
+        }
+    }
+
+    // Simple CSV parser
+    parseCSV(csvText) {
+        const rows = [];
+        let row = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < csvText.length; i++) {
+            const char = csvText[i];
+
+            if (char === '"') {
+                if (inQuotes && csvText[i + 1] === '"') {
+                    // Escaped quote ""
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                // Kết thúc field
+                row.push(current);
+                current = '';
+            } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                if (current !== '' || row.length > 0) {
+                    row.push(current);
+                    rows.push(row);
+                    row = [];
+                    current = '';
+                }
+                // Nếu là \r\n thì bỏ qua \n
+                if (char === '\r' && csvText[i + 1] === '\n') {
+                    i++;
+                }
+            } else {
+                current += char;
+            }
+        }
+
+        // Thêm field cuối cùng
+        if (current !== '' || row.length > 0) {
+            row.push(current);
+            rows.push(row);
+        }
+
+        return rows;
+    }
+
+
+    processSheetData(combinedData) {
+        const stores = [];
+        const { storeListWithCoupons, storeInfo } = combinedData;
+
+        // Create a map of store info by name for quick lookup
+        const storeInfoMap = new Map();
+        storeInfo.forEach((row, index) => {
+            if (index < 5) {
+                return; // Skip first 5 rows (assumed to be headers or irrelevant)
+            }
+            if (row[2]) { // Check if name exists
+                const name = row[2]?.trim()?.toLowerCase();
+                storeInfoMap.set(name, {
+                    name: row[2]?.trim() || '',
+                    description: row[4] || '',
+                    about: '',
+                    guide: row[7] || '',
+                    qa: (row[11] || '') + (row[15] || '')
+                });
+            }
+        });
+
+        // Process sheet1 data to extract stores and their coupons
+        // Expected columns: store_name, coupon_name, coupon_code, discount_bag, coupon_description
+        const storeMap = new Map();
+        const couponMap = new Map();
+
+        storeListWithCoupons.forEach((row, i) => {
+            if (i < 1) {
+                return;
+            }
+            if (row[1] && row[1].trim()) { // Check if store name exists
+                const storeName = row[1].trim();
+                const normalizedStoreName = storeName.toLowerCase();
+                const couponName = row[6] || '';
+                const couponCode = row[4] || '';
+                const discountBag = row[5] || '';
+                const couponDescription = row[9] || '';
+                const storeLink = row[3] || '';
+
+                // Add store to unique store list
+                if (!storeMap.has(normalizedStoreName)) {
+                    storeMap.set(normalizedStoreName, {
+                        name: storeName,
+                        link: storeLink,
+                    });
+                }
+
+                // Add coupon for this store if coupon data exists
+                if (couponName.trim()) {
+                    // Determine if it's a deal (no code needed)
+                    const isDeal = !couponCode || couponCode.toLowerCase().includes('no code needed');
+
+                    const coupon = {
+                        coupon_name: couponName,
+                        coupon_code: isDeal ? '' : couponCode,
+                        discount_value: discountBag, // Using discount_bag as discount_value
+                        store_link: '', // Will be set later when we know the store post ID
+                        is_deal: isDeal,
+                        link: storeLink, // Default empty, can be updated later
+                        discount_bag: discountBag,
+                        is_verified: true, // Default to verified
+                        description: couponDescription
+                    };
+
+                    // Initialize coupon array for store if it doesn't exist
+                    if (!couponMap.has(normalizedStoreName)) {
+                        couponMap.set(normalizedStoreName, []);
+                    }
+                    // Check for duplicate coupons within the same store
+                    couponMap.get(normalizedStoreName).push(coupon);
+                }
+            }
+        });
+
+
+        // Create final store objects with all data
+        storeMap.forEach((storeData, normalizedName) => {
+            // Get store info from sheet2
+            const info = storeInfoMap.get(normalizedName) || {
+                name: storeData.name,
+                description: '',
+                about: '',
+                guide: '',
+                qa: ''
+            };
+
+            // Get coupons for this store
+            const coupons = couponMap.get(normalizedName) || [];
+
+            const store = {
+                name: storeData.name,
+                links: info.links || '', // Use from store info if available
+                guide: info.guide,
+                about: info.about,
+                qa: info.qa,
+                description: info.description,
+                coupons: coupons
+            };
+
+            stores.push(store);
+        });
+
+        console.log(`Processed ${stores.length} unique stores from ${storeListWithCoupons.length} rows with ${storeInfo.length} store info entries`);
+
+        const totalCoupons = stores.reduce((sum, store) => sum + store.coupons.length, 0);
+        console.log(`Total coupons found: ${totalCoupons}`);
+
+        return stores;
+    }
+
+    async getSheetInfo(sheetId, sheetsUrl = null) {
+        try {
+            // Fetch data from all sheets to get info
+            const combinedData = await this.fetchSheetData(sheetId, sheetsUrl);
+
+            return {
+                title: `Multi-Sheet Document ${sheetId}`,
+                accessible: true,
+                storeWithCouponsRows: combinedData.storeListWithCoupons.length,
+                storeInfoRows: combinedData.storeInfo.length,
+                totalRows: combinedData.totalRows,
+                method: 'CSV Export (Public) - 2 Sheets'
+            };
+        } catch (error) {
+            console.error('Error getting sheet info:', error);
+            throw new Error(`Failed to get sheet info: ${error.message}`);
+        }
+    }
+
+    async fetchSheetDataFromSeparateUrls(storeSheetUrl, storeDetailSheetUrl) {
+        try {
+            // Fetch data from separate sheets using their full URLs (including GIDs)
+            const storeData = await this.fetchSingleSheetFromUrl(storeSheetUrl); // Store List with Coupons from first URL
+            const storeDetailData = await this.fetchSingleSheetFromUrl(storeDetailSheetUrl); // Store Info from second URL
+
+            // Combine and return the data
+            return {
+                storeListWithCoupons: storeData, // Contains store and coupon data
+                storeInfo: storeDetailData, // Contains store details
+                totalRows: storeData.length + storeDetailData.length
+            };
+        } catch (error) {
+            console.error('Error fetching sheet data from separate URLs:', error);
+            throw new Error(`Failed to fetch sheet data from separate URLs: ${error.message}`);
+        }
+    }
+
+    async fetchSingleSheetFromUrl(url) {
+        try {
+            const csvUrl = this.getCSVUrlFromFullUrl(url);
+            console.log(`Fetching data from CSV URL: ${csvUrl}`);
+
+            const response = await axios.get(csvUrl, {
+                timeout: 10000,
+                headers: {
+                    'User-Agent': 'Auto-Store-Creator/1.0'
+                }
+            });
+
+            if (response.status !== 200) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            // Parse CSV data
+            const csvData = response.data;
+
+            const rows = this.parseCSV(csvData);
+
+            console.log(`Successfully fetched ${rows.length} rows from URL`);
+            return rows;
+        } catch (error) {
+            console.error(`Error fetching sheet from URL: ${url}`, error);
+            throw new Error(`Failed to fetch data from URL: ${error.message}`);
+        }
+    }
+}
+
+module.exports = GoogleSheetsService;

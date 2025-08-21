@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Store Creator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1><i class="fas fa-store"></i> Auto Store Creator</h1>
+        <p>Automatically create WordPress stores from Google Sheets data</p>
+      </header>
+
+      <main class="main-content">
+        <!-- Configuration Section -->
+        <section class="card" id="config-section">
+          <h2><i class="fas fa-cog"></i> Configuration</h2>
+          <p>
+            <i class="fas fa-info-circle"></i>
+            <strong>No API key required!</strong> Just publish your Google Sheet
+            to the web.
+          </p>
+          <form id="config-form">
+            <div class="form-group">
+              <label for="store-sheets-url">Store & Coupons Sheet URL:</label>
+              <input
+                type="url"
+                id="store-sheets-url"
+                placeholder="https://docs.google.com/spreadsheets/d/e/2PACX-.../pubhtml"
+                required
+              />
+              <small
+                ><strong>Store Sheet:</strong> Contains store names and coupon
+                data (store name, coupon name, coupon_code, discount_value,
+                etc.)</small
+              >
+            </div>
+            <div class="form-group">
+              <label for="storedetail-sheets-url"
+                >Store Details Sheet URL:</label
+              >
+              <input
+                type="url"
+                id="storedetail-sheets-url"
+                placeholder="https://docs.google.com/spreadsheets/d/e/2PACX-.../pubhtml"
+                required
+              />
+              <small
+                ><strong>Store Details Sheet:</strong> Contains store
+                information (name, descriptions, about, guide, q_and_a)</small
+              >
+            </div>
+            <div class="form-group">
+              <small
+                ><strong>Setup:</strong> 1. Open each Google Sheet → 2. "Tệp" →
+                "Chia Sẻ" → "Xuất bản lên web" → 3. Choose "Toàn bộ tài liệu"
+                and "Trang web" → 4. Click "Xuất bản" and paste each URL
+                above</small
+              >
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Save Configuration
+            </button>
+          </form>
+        </section>
+
+        <!-- Status Section -->
+        <section class="card" id="status-section">
+          <h2><i class="fas fa-info-circle"></i> Status</h2>
+          <div class="status-grid">
+            <div class="status-item">
+              <i class="fas fa-link"></i>
+              <div>
+                <strong>Configuration</strong>
+                <span id="config-status">Not configured</span>
+              </div>
+            </div>
+            <div class="status-item">
+              <i class="fas fa-clock"></i>
+              <div>
+                <strong>Last Check</strong>
+                <span id="last-run">Never</span>
+              </div>
+            </div>
+            <div class="status-item">
+              <i class="fas fa-chart-line"></i>
+              <div>
+                <strong>Polling Interval</strong>
+                <span id="polling-interval">5 minutes</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Actions Section -->
+        <section class="card" id="actions-section">
+          <h2><i class="fas fa-tools"></i> Actions</h2>
+          <div class="action-buttons">
+            <button id="test-connection" class="btn btn-secondary">
+              <i class="fas fa-plug"></i> Test Connection
+            </button>
+            <button id="refresh-status" class="btn btn-secondary">
+              <i class="fas fa-sync-alt"></i> Refresh Status
+            </button>
+            <button id="create-stores-now" class="btn btn-success">
+              <i class="fas fa-rocket"></i> Create Stores Now
+            </button>
+            <button id="view-stores" class="btn btn-secondary">
+              <i class="fas fa-list"></i> View Stores
+            </button>
+          </div>
+        </section>
+
+        <!-- Logs Section -->
+        <section class="card" id="logs-section">
+          <h2><i class="fas fa-list"></i> Recent Activity</h2>
+          <div id="logs-container">
+            <p class="no-logs">No activity yet</p>
+          </div>
+        </section>
+
+        <!-- Data Preview Section -->
+        <section class="card" id="preview-section" style="display: none">
+          <h2><i class="fas fa-table"></i> Data Preview</h2>
+          <div id="preview-container" style="overflow: auto">
+            <!-- Data preview will be loaded here -->
+          </div>
+        </section>
+
+        <!-- Store Management Section -->
+        <section class="card" id="stores-section" style="display: none">
+          <h2><i class="fas fa-store"></i> Store Management</h2>
+          <div id="stores-container">
+            <!-- Store information will be loaded here -->
+          </div>
+        </section>
+      </main>
+
+      <!-- Success/Error Messages -->
+      <div id="message-container"></div>
+
+      <!-- Loading Overlay -->
+      <div id="loading-overlay" class="loading-overlay" style="display: none">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
