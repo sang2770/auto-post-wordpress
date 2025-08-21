@@ -393,6 +393,187 @@ async function generateExcelFile(storesWithCoupons) {
     return buffer;
 }
 
+// Trigger store creation manually
+app.post('/api/create-stores-now', async (req, res) => {
+    try {
+        console.log('Manual store creation triggered...');
+
+        const config = await storageService.getConfig();
+        if (!config?.storeSheetsUrl || !config?.storeDetailSheetsUrl) {
+            return res.status(400).json({ error: 'No configuration found. Please configure both Store and Store Detail Google Sheets URLs first.' });
+        }
+
+        // Fetch current sheet data from separate URLs
+        const currentData = await googleSheetsService.fetchSheetDataFromSeparateUrls(config.storeSheetsUrl, config.storeDetailSheetsUrl);
+
+        // Process stores using shared function
+        const results = await processStores(currentData, { isManualTrigger: true });
+
+        res.json({
+            success: true,
+            message: `Process completed successfully!`,
+            results: results
+        });
+    } catch (error) {
+        console.error('Error in manual store creation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Shared function to process stores with duplicate checking
+async function processStores(currentData, options = {}) {
+    const { isManualTrigger = false } = options;
+
+    // Fetch existing stores from WordPress to check for duplicates
+    console.log('Fetching existing stores from WordPress...');
+    let existingStores = [];
+    try {
+        existingStores = await wordpressService.getAllStores();
+    } catch (error) {
+        console.error('Failed to fetch existing stores:', error.message);
+        console.log('Continuing without duplicate checking...');
+    }
+
+    const newStores = googleSheetsService.processSheetData(currentData);
+    let createdCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+    let errors = [];
+    let totalCouponsCreated = 0;
+    let imagesProcessed = 0;
+    let imagesSkipped = 0;
+
+    for (const store of newStores) {
+        try {
+            // Check for duplicates
+            const duplicateCheck = wordpressService.checkDuplicate(store, existingStores);
+
+            if (duplicateCheck.isDuplicate) {
+                console.log(`Found existing store: ${store.name}, updating...`);
+
+                // Update existing store and its coupons
+                const result = await wordpressService.updateStoreWithCoupons(store, duplicateCheck.existingStore.id);
+                updatedCount++;
+                totalCouponsCreated += result.successfulCoupons;
+
+                // Track image processing
+                if (result.featuredImageId) {
+                    imagesProcessed++;
+                } else if (store.image) {
+                    imagesSkipped++;
+                }
+
+                console.log(`Updated store: ${store.name} with ${result.successfulCoupons}/${result.totalCoupons} coupons`);
+
+                // Log any coupon processing failures
+                const failedCoupons = result.coupons.filter(c => !c.success);
+                if (failedCoupons.length > 0) {
+                    failedCoupons.forEach(coupon => {
+                        errors.push({
+                            storeName: store.name,
+                            couponName: coupon.name,
+                            error: coupon.error,
+                            type: 'coupon'
+                        });
+                    });
+                }
+                continue;
+            } else {
+                // Create new store with coupons if any coupons exist
+                if (store.coupons && store.coupons.length > 0) {
+                    const result = await wordpressService.createStoreWithCoupons(store);
+                    createdCount++;
+                    totalCouponsCreated += result.successfulCoupons;
+
+                    // Track image processing
+                    if (result.featuredImageId) {
+                        imagesProcessed++;
+                    } else if (store.image) {
+                        imagesSkipped++;
+                    }
+
+                    console.log(`Created store: ${store.name} with ${result.successfulCoupons}/${result.totalCoupons} coupons`);
+
+                    // Log any coupon creation failures
+                    const failedCoupons = result.coupons.filter(c => !c.success);
+                    if (failedCoupons.length > 0) {
+                        failedCoupons.forEach(coupon => {
+                            errors.push({
+                                storeName: store.name,
+                                couponName: coupon.name,
+                                error: coupon.error,
+                                type: 'coupon'
+                            });
+                        });
+                    }
+                } else {
+                    // Create store without coupons
+                    const result = await wordpressService.createStore(store);
+                    createdCount++;
+
+                    // Track image processing
+                    if (result.featuredImageId) {
+                        imagesProcessed++;
+                    } else if (store.image) {
+                        imagesSkipped++;
+                    }
+
+                    console.log(`Created store: ${store.name} (no coupons)`);
+                }
+            }
+
+
+        } catch (error) {
+            console.error(`Failed to create store ${store.name}:`, error.message);
+            errors.push({ storeName: store.name, error: error.message, type: 'store' });
+        }
+    }
+
+    // Cleanup image resources
+    wordpressService.cleanupImageResources();
+
+    // Save the data as processed
+    await storageService.saveLastData(currentData);
+
+    // Save detailed run information
+    const runInfo = {
+        timestamp: new Date().toISOString(),
+        storesCreated: createdCount,
+        storesUpdated: updatedCount,
+        storesSkipped: skippedCount,
+        totalRows: currentData.totalRows || 0,
+        storeWithCouponsRows: currentData.storeListWithCoupons?.length || 0,
+        storeInfoRows: currentData.storeInfo?.length || 0,
+        totalStores: newStores.length,
+        existingStoresCount: existingStores.length,
+        totalCouponsCreated: totalCouponsCreated,
+        imagesProcessed: imagesProcessed,
+        imagesSkipped: imagesSkipped,
+        errors: errors,
+        hasChanges: true,
+        ...(isManualTrigger && { manualTrigger: true })
+    };
+    await storageService.saveLastRun(runInfo);
+
+    const logMessage = isManualTrigger ? 'Manual creation' : 'Processing';
+    console.log(`${logMessage} complete. Created ${createdCount} stores, updated ${updatedCount} stores, with ${totalCouponsCreated} coupons processed, ${imagesProcessed} images processed, skipped ${skippedCount} duplicates.`);
+
+    return {
+        storesCreated: createdCount,
+        storesUpdated: updatedCount,
+        storesSkipped: skippedCount,
+        totalFromSheet: newStores.length,
+        existingInWordPress: existingStores.length,
+        couponsCreated: totalCouponsCreated,
+        imagesProcessed: imagesProcessed,
+        imagesSkipped: imagesSkipped,
+        errors: errors,
+        totalRows: currentData.totalRows || 0,
+        storeWithCouponsRows: currentData.storeListWithCoupons?.length || 0,
+        storeInfoRows: currentData.storeInfo?.length || 0
+    };
+}
+
 // Background job to check for changes
 async function checkForChanges() {
     try {

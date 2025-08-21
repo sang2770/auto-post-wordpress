@@ -169,7 +169,7 @@ class GoogleSheetsService {
                 storeInfoMap.set(name, {
                     name: row[2]?.trim() || '',
                     description: row[3] || '',
-                    about: '',
+                    about: row[10] || '',
                     guide: row[7] || '',
                     qa: (row[11] || '') + (row[15] || ''),
                 });
