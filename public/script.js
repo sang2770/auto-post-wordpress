@@ -33,6 +33,10 @@ class AutoStoreCreator {
         document.getElementById('view-stores').addEventListener('click', () => {
             this.viewStores();
         });
+
+        document.getElementById('export-excel').addEventListener('click', () => {
+            this.exportExcel();
+        });
     }
 
     async saveConfiguration() {
@@ -369,6 +373,58 @@ class AutoStoreCreator {
 
         storesContainer.innerHTML = html;
         storesSection.style.display = 'block';
+    }
+
+    async exportExcel() {
+        this.showLoading(true);
+        this.showMessage('Preparing Excel export... This may take a few minutes.', 'info');
+
+        try {
+            const response = await fetch('/api/export-excel', {
+                method: 'GET'
+            });
+
+            if (response.ok) {
+                // Create a blob from the response
+                const blob = await response.blob();
+
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+
+                // Get filename from response header or create default
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'stores_export.xlsx';
+                if (contentDisposition) {
+                    const matches = contentDisposition.match(/filename="(.+)"/);
+                    if (matches) {
+                        filename = matches[1];
+                    }
+                }
+
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+
+                // Cleanup
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                this.showMessage('Excel file downloaded successfully!', 'success');
+                this.addLogEntry(`Excel export completed - ${filename}`, 'success');
+            } else {
+                const result = await response.json();
+                this.showMessage(result.error || 'Export failed', 'error');
+                this.addLogEntry('Excel export failed', 'error');
+            }
+        } catch (error) {
+            console.error('Export error:', error);
+            this.showMessage('Export failed. Please try again.', 'error');
+            this.addLogEntry('Excel export failed', 'error');
+        } finally {
+            this.showLoading(false);
+        }
     }
 
     startStatusPolling() {

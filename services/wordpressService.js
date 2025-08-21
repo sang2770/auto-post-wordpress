@@ -132,12 +132,33 @@ class WordPressService {
 
             while (hasMore) {
                 try {
-                    const response = await this.apiClient.get(`/store?per_page=100&page=${page}`);
+                    const response = await this.apiClient.get(`/store?per_page=100&page=${page}&_embed=1`);
                     const stores = response.data;
 
                     if (stores.length === 0) {
                         hasMore = false;
                     } else {
+                        // Add featured image URL to each store
+                        for (const store of stores) {
+                            if (store.featured_media && store.featured_media > 0) {
+                                try {
+                                    // Try to get from _embedded first
+                                    if (store._embedded && store._embedded['wp:featuredmedia'] && store._embedded['wp:featuredmedia'][0]) {
+                                        store.featured_media_url = store._embedded['wp:featuredmedia'][0].source_url;
+                                    } else {
+                                        // Fallback to separate API call
+                                        const mediaResponse = await this.apiClient.get(`/media/${store.featured_media}`);
+                                        store.featured_media_url = mediaResponse.data.source_url;
+                                    }
+                                } catch (error) {
+                                    console.error(`Failed to fetch featured image for store ${store.id}:`, error.message);
+                                    store.featured_media_url = '';
+                                }
+                            } else {
+                                store.featured_media_url = '';
+                            }
+                        }
+
                         allStores = allStores.concat(stores);
                         page++;
                     }
