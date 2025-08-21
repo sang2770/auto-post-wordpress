@@ -161,14 +161,14 @@ class GoogleSheetsService {
         // Create a map of store info by name for quick lookup
         const storeInfoMap = new Map();
         storeInfo.forEach((row, index) => {
-            if (index < 5) {
+            if (index < 4) {
                 return; // Skip first 5 rows (assumed to be headers or irrelevant)
             }
             if (row[2]) { // Check if name exists
                 const name = row[2]?.trim()?.toLowerCase();
                 storeInfoMap.set(name, {
                     name: row[2]?.trim() || '',
-                    description: row[4] || '',
+                    description: row[3] || '',
                     about: '',
                     guide: row[7] || '',
                     qa: (row[11] || '') + (row[15] || ''),

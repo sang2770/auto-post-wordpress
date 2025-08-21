@@ -181,6 +181,16 @@ class WordPressService {
 
     async updateStore(storeId, storeData) {
         try {
+            // Process featured image if provided
+            let featuredImageId = null;
+            if (storeData.image) {
+                console.log(`Processing featured image for store update: ${storeData.name}`);
+                featuredImageId = await this.imageService.processStoreImage(storeData.image, storeData.name);
+                if (featuredImageId) {
+                    console.log(`Featured image uploaded with ID: ${featuredImageId}`);
+                }
+            }
+
             const postData = {
                 title: storeData.name,
                 content: this.formatStoreContent(storeData),
@@ -196,8 +206,18 @@ class WordPressService {
                 }
             };
 
+            // Set featured image if we have one
+            if (featuredImageId) {
+                postData.featured_media = featuredImageId;
+            }
+
             const response = await this.apiClient.put(`/store/${storeId}`, postData);
-            return response.data;
+            return {
+                success: true,
+                message: `Store "${storeData.name}" updated successfully`,
+                data: response.data,
+                featuredImageId: featuredImageId
+            };
         } catch (error) {
             console.error('Error updating store:', error.message);
             throw new Error(`Failed to update store: ${error.message}`);
@@ -297,6 +317,152 @@ class WordPressService {
             };
         } catch (error) {
             console.error('Error creating store with coupons:', error);
+            throw error;
+        }
+    }
+
+    async getCouponsForStore(storePostId) {
+        try {
+            const response = await this.apiClient.get(`/coupon?meta_query[0][key]=store_link&meta_query[0][value]=${storePostId}&meta_query[0][compare]=LIKE&per_page=100`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching coupons for store:', error.message);
+            return []; // Return empty array if error, don't throw
+        }
+    }
+
+    async updateCoupon(couponId, couponData, storePostId) {
+        try {
+            const postData = {
+                title: couponData.coupon_name,
+                status: 'publish',
+                acf: {
+                    coupon_code: couponData.coupon_code,
+                    discount_value: couponData.discount_value,
+                    store_link: storePostId,
+                    is_deal: couponData.is_deal,
+                    link: couponData.link || '',
+                    discount_bag: couponData.discount_bag,
+                    is_verified: couponData.is_verified !== false,
+                    description: couponData.description || ''
+                }
+            };
+
+            const response = await this.apiClient.put(`/coupon/${couponId}`, postData);
+            return {
+                success: true,
+                message: `Coupon "${couponData.coupon_name}" updated successfully`,
+                data: response.data
+            };
+        } catch (error) {
+            console.error('Error updating coupon:', error.message);
+            throw new Error(`Failed to update coupon: ${error.message}`);
+        }
+    }
+
+    async deleteCoupon(couponId) {
+        try {
+            const response = await this.apiClient.delete(`/coupon/${couponId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error deleting coupon:', error.message);
+            throw new Error(`Failed to delete coupon: ${error.message}`);
+        }
+    }
+
+    async updateStoreWithCoupons(storeData, existingStoreId) {
+        try {
+            // First update the store
+            const storeResult = await this.updateStore(existingStoreId, storeData);
+
+            if (!storeResult.success) {
+                throw new Error('Failed to update store');
+            }
+
+            // Get existing coupons for this store
+            const existingCoupons = await this.getCouponsForStore(existingStoreId);
+            const newCoupons = storeData.coupons || [];
+            const couponResults = [];
+
+            // Create a map of existing coupons by name+code for quick lookup
+            const existingCouponMap = new Map();
+            existingCoupons.forEach(coupon => {
+                const key = `${coupon.acf?.coupon_code || ''}`;
+                existingCouponMap.set(key, coupon);
+            });
+
+            // Process new coupons
+            for (const newCoupon of newCoupons) {
+                const couponKey = `${newCoupon.coupon_code || ''}`;
+                const existingCoupon = existingCouponMap.get(couponKey);
+                try {
+                    if (existingCoupon) {
+                        // Update existing coupon
+                        await this.updateCoupon(existingCoupon.id, newCoupon, existingStoreId);
+                        couponResults.push({
+                            name: newCoupon.coupon_name,
+                            success: true,
+                            id: existingCoupon.id,
+                            action: 'updated'
+                        });
+                        console.log(`Updated coupon: ${newCoupon.coupon_name} for store: ${storeData.name}`);
+
+                        // Remove from map so we know it was processed
+                        existingCouponMap.delete(couponKey);
+                    } else {
+                        console.log(`Creating new coupon: ${newCoupon.coupon_name} for store: ${storeData.name}`);
+
+                        // Create new coupon
+                        const newCouponData = {
+                            ...newCoupon,
+                            store_link: existingStoreId
+                        };
+
+                        const createdCoupon = await this.createCoupon(newCouponData, existingStoreId);
+                        couponResults.push({
+                            name: newCoupon.coupon_name,
+                            success: true,
+                            id: createdCoupon.data?.id,
+                            action: 'created'
+                        });
+                        console.log(`Created new coupon: ${newCoupon.coupon_name} for store: ${storeData.name}`);
+                    }
+                } catch (error) {
+                    console.error(`Failed to process coupon ${newCoupon.coupon_name}:`, error.message);
+                    couponResults.push({
+                        name: newCoupon.coupon_name,
+                        success: false,
+                        error: error.message,
+                        action: 'failed'
+                    });
+                }
+            }
+
+            // Optionally delete coupons that are no longer in the sheet
+            // (Commented out for safety - you might want to keep old coupons)
+            /*
+            for (const [key, oldCoupon] of existingCouponMap) {
+                try {
+                    await this.deleteCoupon(oldCoupon.id);
+                    console.log(`Deleted old coupon: ${oldCoupon.title?.rendered || oldCoupon.title} for store: ${storeData.name}`);
+                } catch (error) {
+                    console.error(`Failed to delete old coupon ${oldCoupon.id}:`, error.message);
+                }
+            }
+            */
+
+            return {
+                success: true,
+                message: `Store "${storeData.name}" updated with ${couponResults.filter(c => c.success).length}/${newCoupons.length} coupons`,
+                storeData: storeResult.data,
+                coupons: couponResults,
+                totalCoupons: newCoupons.length,
+                successfulCoupons: couponResults.filter(c => c.success).length,
+                featuredImageId: storeResult.featuredImageId,
+                action: 'updated'
+            };
+        } catch (error) {
+            console.error('Error updating store with coupons:', error);
             throw error;
         }
     }

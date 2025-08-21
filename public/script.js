@@ -138,6 +138,10 @@ class AutoStoreCreator {
                 const { results } = result;
                 let message = `Process completed! Created ${results.storesCreated} stores`;
 
+                if (results.storesUpdated > 0) {
+                    message += `, updated ${results.storesUpdated} stores`;
+                }
+
                 if (results.storesSkipped > 0) {
                     message += `, skipped ${results.storesSkipped} duplicates`;
                 }
@@ -147,7 +151,7 @@ class AutoStoreCreator {
                 }
 
                 this.showMessage(message, 'success');
-                this.addLogEntry(`Manual creation: ${results.storesCreated} created, ${results.storesSkipped} skipped`, 'success');
+                this.addLogEntry(`Manual creation: ${results.storesCreated} created, ${results.storesUpdated || 0} updated, ${results.storesSkipped} skipped`, 'success');
 
                 // Show detailed results
                 this.showCreateResults(results);
@@ -315,6 +319,9 @@ class AutoStoreCreator {
                 <div class="stats-grid">
                     <div class="stat-item success">
                         <strong>Stores Created:</strong> ${results.storesCreated}
+                    </div>
+                    <div class="stat-item success">
+                        <strong>Stores Updated:</strong> ${results.storesUpdated || 0}
                     </div>
                     <div class="stat-item success">
                         <strong>Coupons Created:</strong> ${results.couponsCreated || 0}

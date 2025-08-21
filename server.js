@@ -238,7 +238,7 @@ app.post('/api/create-stores-now', async (req, res) => {
 
 // Shared function to process stores with duplicate checking
 async function processStores(currentData, options = {}) {
-    const { isManualTrigger = false, forceProcess = false } = options;
+    const { isManualTrigger = false } = options;
 
     // Fetch existing stores from WordPress to check for duplicates
     console.log('Fetching existing stores from WordPress...');
@@ -251,9 +251,8 @@ async function processStores(currentData, options = {}) {
     }
 
     const newStores = googleSheetsService.processSheetData(currentData);
-    console.log("newStores:", newStores);
-
     let createdCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
     let errors = [];
     let totalCouponsCreated = 0;
@@ -266,15 +265,11 @@ async function processStores(currentData, options = {}) {
             const duplicateCheck = wordpressService.checkDuplicate(store, existingStores);
 
             if (duplicateCheck.isDuplicate) {
-                console.log(`Skipping duplicate store: ${store.name} (${duplicateCheck.reason})`);
-                skippedCount++;
-                continue;
-            }
+                console.log(`Found existing store: ${store.name}, updating...`);
 
-            // Create store with coupons if any coupons exist
-            if (store.coupons && store.coupons.length > 0) {
-                const result = await wordpressService.createStoreWithCoupons(store);
-                createdCount++;
+                // Update existing store and its coupons
+                const result = await wordpressService.updateStoreWithCoupons(store, duplicateCheck.existingStore.id);
+                updatedCount++;
                 totalCouponsCreated += result.successfulCoupons;
 
                 // Track image processing
@@ -284,9 +279,9 @@ async function processStores(currentData, options = {}) {
                     imagesSkipped++;
                 }
 
-                console.log(`Created store: ${store.name} with ${result.successfulCoupons}/${result.totalCoupons} coupons`);
+                console.log(`Updated store: ${store.name} with ${result.successfulCoupons}/${result.totalCoupons} coupons`);
 
-                // Log any coupon creation failures
+                // Log any coupon processing failures
                 const failedCoupons = result.coupons.filter(c => !c.success);
                 if (failedCoupons.length > 0) {
                     failedCoupons.forEach(coupon => {
@@ -298,20 +293,52 @@ async function processStores(currentData, options = {}) {
                         });
                     });
                 }
+                continue;
             } else {
-                // Create store without coupons
-                const result = await wordpressService.createStore(store);
-                createdCount++;
+                // Create new store with coupons if any coupons exist
+                if (store.coupons && store.coupons.length > 0) {
+                    const result = await wordpressService.createStoreWithCoupons(store);
+                    createdCount++;
+                    totalCouponsCreated += result.successfulCoupons;
 
-                // Track image processing
-                if (result.featuredImageId) {
-                    imagesProcessed++;
-                } else if (store.image) {
-                    imagesSkipped++;
+                    // Track image processing
+                    if (result.featuredImageId) {
+                        imagesProcessed++;
+                    } else if (store.image) {
+                        imagesSkipped++;
+                    }
+
+                    console.log(`Created store: ${store.name} with ${result.successfulCoupons}/${result.totalCoupons} coupons`);
+
+                    // Log any coupon creation failures
+                    const failedCoupons = result.coupons.filter(c => !c.success);
+                    if (failedCoupons.length > 0) {
+                        failedCoupons.forEach(coupon => {
+                            errors.push({
+                                storeName: store.name,
+                                couponName: coupon.name,
+                                error: coupon.error,
+                                type: 'coupon'
+                            });
+                        });
+                    }
+                } else {
+                    // Create store without coupons
+                    const result = await wordpressService.createStore(store);
+                    createdCount++;
+
+                    // Track image processing
+                    if (result.featuredImageId) {
+                        imagesProcessed++;
+                    } else if (store.image) {
+                        imagesSkipped++;
+                    }
+
+                    console.log(`Created store: ${store.name} (no coupons)`);
                 }
-
-                console.log(`Created store: ${store.name} (no coupons)`);
             }
+
+
         } catch (error) {
             console.error(`Failed to create store ${store.name}:`, error.message);
             errors.push({ storeName: store.name, error: error.message, type: 'store' });
@@ -328,6 +355,7 @@ async function processStores(currentData, options = {}) {
     const runInfo = {
         timestamp: new Date().toISOString(),
         storesCreated: createdCount,
+        storesUpdated: updatedCount,
         storesSkipped: skippedCount,
         totalRows: currentData.totalRows || 0,
         storeWithCouponsRows: currentData.storeListWithCoupons?.length || 0,
@@ -344,10 +372,11 @@ async function processStores(currentData, options = {}) {
     await storageService.saveLastRun(runInfo);
 
     const logMessage = isManualTrigger ? 'Manual creation' : 'Processing';
-    console.log(`${logMessage} complete. Created ${createdCount} stores with ${totalCouponsCreated} coupons, ${imagesProcessed} images processed, skipped ${skippedCount} duplicates.`);
+    console.log(`${logMessage} complete. Created ${createdCount} stores, updated ${updatedCount} stores, with ${totalCouponsCreated} coupons processed, ${imagesProcessed} images processed, skipped ${skippedCount} duplicates.`);
 
     return {
         storesCreated: createdCount,
+        storesUpdated: updatedCount,
         storesSkipped: skippedCount,
         totalFromSheet: newStores.length,
         existingInWordPress: existingStores.length,
@@ -388,6 +417,7 @@ async function checkForChanges() {
             const runInfo = {
                 timestamp: new Date().toISOString(),
                 storesCreated: 0,
+                storesUpdated: 0,
                 totalRows: currentData.totalRows || 0,
                 storeWithCouponsRows: currentData.storeListWithCoupons?.length || 0,
                 storeInfoRows: currentData.storeInfo?.length || 0,
