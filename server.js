@@ -447,7 +447,6 @@ async function processStores(currentData, options = {}) {
         try {
             // Check for duplicates
             const duplicateCheck = wordpressService.checkDuplicate(store, existingStores);
-
             if (duplicateCheck.isDuplicate) {
                 console.log(`Found existing store: ${store.name}, updating...`);
 

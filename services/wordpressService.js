@@ -208,7 +208,7 @@ class WordPressService {
     const normalizedNewName = newStore.name.toLowerCase().trim();
 
     for (const existingStore of existingStores) {
-      const existingTitle =
+      const existingTitle = existingStore?.acf?.name ||
         existingStore.title?.rendered || existingStore.title || "";
       const normalizedExistingName = existingTitle.toLowerCase().trim();
       if (normalizedNewName === normalizedExistingName) {
