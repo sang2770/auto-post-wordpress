@@ -37,7 +37,7 @@ class GoogleSheetsService {
             const includesTemp = title.toLowerCase().includes('temp');
 
             return {
-                accessible: true,
+                accessible: !includesTemp,
                 title: title,
                 includesTemp: includesTemp,
                 sheetCount: spreadsheet.sheets?.length || 0,
