@@ -1,9 +1,16 @@
 {
-  "timestamp": "2025-08-21T14:25:03.579Z",
-  "storesCreated": 0,
-  "storesUpdated": 0,
-  "totalRows": 39,
-  "storeWithCouponsRows": 33,
-  "storeInfoRows": 6,
-  "hasChanges": false
+  "timestamp": "2025-08-22T08:10:22.838Z",
+  "storesCreated": 2,
+  "storesUpdated": 1,
+  "storesSkipped": 0,
+  "totalRows": 42,
+  "storeWithCouponsRows": 35,
+  "storeInfoRows": 7,
+  "totalStores": 3,
+  "existingStoresCount": 1,
+  "totalCouponsCreated": 10,
+  "imagesProcessed": 3,
+  "imagesSkipped": 0,
+  "errors": [],
+  "hasChanges": true
 }

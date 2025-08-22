@@ -227,7 +227,7 @@ class GoogleSheetsService {
                 storeInfoMap.set(name, {
                     name: row[2]?.trim() || '',
                     description: row[3] || '',
-                    about: row[10] || '',
+                    about: row[8] || '',
                     guide: row[7] || '',
                     qa: (row[11] || '') + (row[15] || ''),
                 });
@@ -243,15 +243,15 @@ class GoogleSheetsService {
             if (i < 1) {
                 return;
             }
-            if (row[1] && row[1].trim()) { // Check if store name exists
-                const storeName = row[1].trim();
+            if (row[2] && row[2].trim()) { // Check if store name exists
+                const storeName = row[2].trim();
                 const normalizedStoreName = storeName.toLowerCase();
-                const couponName = row[6] || '';
-                const couponCode = row[4] || '';
-                const discountBag = row[5] || '';
-                const couponDescription = row[9] || '';
-                const storeLink = row[3] || '';
-                const storeImage = row[0] || ''; // Add store image from column 3 (index 2)
+                const couponName = row[7] || '';
+                const couponCode = row[5] || '';
+                const discountBag = row[6] || '';
+                const couponDescription = row[10] || '';
+                const storeLink = row[4] || '';
+                const storeImage = row[1] || ''; // Add store image from column 3 (index 2)
 
                 // Add store to unique store list
                 if (!storeMap.has(normalizedStoreName)) {
@@ -265,7 +265,7 @@ class GoogleSheetsService {
                 // Add coupon for this store if coupon data exists
                 if (couponName.trim()) {
                     // Determine if it's a deal (no code needed)
-                    const isDeal = !couponCode || couponCode.toLowerCase().includes('no code needed');
+                    const isDeal = !couponCode || couponCode.toLowerCase().includes('no code needed') || couponCode.toLowerCase().includes('no need code');
 
                     const coupon = {
                         coupon_name: couponName,

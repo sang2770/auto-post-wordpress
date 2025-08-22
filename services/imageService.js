@@ -56,6 +56,8 @@ class ImageService {
             const fileBuffer = fs.readFileSync(filePath);
             const mimeType = this.getMimeType(filename);
 
+            console.log(`Uploading ${filename} (${mimeType}) to WordPress...`);
+
             const response = await axios.post(
                 `${this.wpAuth.url}/wp-json/wp/v2/media`,
                 fileBuffer,
@@ -86,6 +88,12 @@ class ImageService {
             return response.data;
         } catch (error) {
             console.error(`Failed to upload image to WordPress:`, error.response?.data || error.message);
+            
+            // More specific error handling
+            if (error.response?.data?.code === 'rest_upload_sideload_error') {
+                console.error(`File type not allowed. Filename: ${filename}, MIME type: ${this.getMimeType(filename)}`);
+            }
+            
             throw new Error(`WordPress upload failed: ${error.response?.data?.message || error.message}`);
         }
     }
@@ -111,7 +119,7 @@ class ImageService {
 
         try {
             // Create a safe filename
-            const urlParts = imageUrl.split('/');
+            const urlParts = imageUrl.split('?')[0].split('/'); // Remove query parameters first
             let filename = urlParts[urlParts.length - 1];
             
             // If no extension found, try to get it from URL or default to jpg
@@ -120,8 +128,10 @@ class ImageService {
                 filename = `${storeName.replace(/[^a-zA-Z0-9]/g, '_')}_image${ext}`;
             }
             
-            // Ensure filename is safe
-            filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+            // Ensure filename is safe and has proper extension
+            const baseName = path.parse(filename).name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const ext = path.extname(filename) || this.guessExtensionFromUrl(imageUrl) || '.jpg';
+            filename = `${baseName}${ext}`;
 
             console.log(`Processing image for store ${storeName}: ${imageUrl}`);
 
@@ -145,6 +155,15 @@ class ImageService {
 
     guessExtensionFromUrl(url) {
         const lowerUrl = url.toLowerCase();
+        
+        // First try to extract extension from URL path (before query parameters)
+        const urlPath = url.split('?')[0];
+        const pathExt = path.extname(urlPath).toLowerCase();
+        if (pathExt && ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'].includes(pathExt)) {
+            return pathExt === '.jpeg' ? '.jpg' : pathExt;
+        }
+        
+        // Fallback to searching in the full URL
         if (lowerUrl.includes('.jpg') || lowerUrl.includes('jpeg')) return '.jpg';
         if (lowerUrl.includes('.png')) return '.png';
         if (lowerUrl.includes('.gif')) return '.gif';
