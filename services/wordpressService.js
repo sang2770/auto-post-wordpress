@@ -53,7 +53,8 @@ class WordPressService {
                     q_and_a: storeData.qa || '',
                     star: 5, // Default rating
                     vote: 5, // Default vote count
-                    title_page: storeData.name || ''
+                    title_page: storeData.name || '',
+                    description: storeData.description || ''
                 }
             };
 
@@ -223,7 +224,8 @@ class WordPressService {
                     q_and_a: storeData.qa || '',
                     star: 5, // Default rating
                     vote: 5, // Default vote count
-                    title_page: storeData.name || ''
+                    title_page: storeData.name || '',
+                    description: storeData.description || ''
                 }
             };
 
