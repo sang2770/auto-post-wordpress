@@ -390,9 +390,7 @@ class WordPressService {
 
   async getCouponsForStore(storePostId) {
     try {
-      const response = await this.apiClient.get(
-        `/coupon?meta_query[0][key]=store_link&meta_query[0][value]=${storePostId}&meta_query[0][compare]=LIKE&per_page=100`
-      );
+      const response = await this.apiClient.get('/coupon?store_link=' + storePostId);
       return response.data;
     } catch (error) {
       console.error("Error fetching coupons for store:", error.message);
@@ -520,9 +518,6 @@ class WordPressService {
             console.log(
               `Updated coupon: ${newCoupon.coupon_name} for store: ${storeData.name}`
             );
-
-            // Remove from map so we know it was processed
-            existingCouponMap.delete(couponKey);
           } else {
             console.log(
               `Creating new coupon: ${newCoupon.coupon_name} for store: ${storeData.name}`
