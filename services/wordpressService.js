@@ -338,8 +338,32 @@ class WordPressService {
       const coupons = storeData.coupons || [];
       const couponResults = [];
 
-      // Create coupons for this store
+      // Remove duplicate coupons before creating them
+      const uniqueCoupons = [];
+      const seenKeys = new Set();
+
       for (const coupon of coupons) {
+        const key = this.normalizeCouponKey(coupon.coupon_code, coupon.coupon_name);
+        console.log(`Processing coupon key: ${key}`);
+
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          uniqueCoupons.push(coupon);
+        } else {
+          console.log(
+            `Skipped duplicate coupon in sheet: ${coupon.coupon_name} for store: ${storeData.name}`
+          );
+          couponResults.push({
+            name: coupon.coupon_name,
+            success: false,
+            error: "Duplicate coupon in data",
+            action: "skipped",
+          });
+        }
+      }
+
+      // Create coupons for this store
+      for (const coupon of uniqueCoupons) {
         try {
           // Update store_link with the actual store post ID
           const couponWithStoreLink = {
@@ -355,6 +379,7 @@ class WordPressService {
             name: coupon.coupon_name,
             success: true,
             id: couponResult.data?.id,
+            action: "created",
           });
           console.log(
             `Created coupon: ${coupon.coupon_name} for store: ${storeData.name}`
@@ -368,6 +393,7 @@ class WordPressService {
             name: coupon.coupon_name,
             success: false,
             error: error.message,
+            action: "failed",
           });
         }
       }
@@ -440,6 +466,21 @@ class WordPressService {
     }
   }
 
+  normalizeCouponKey(code, name) {
+    const decodeHtml = (html) => {
+      const doc = new JSDOM(html || "");
+      return doc.window.document.documentElement.textContent || "";
+    };
+    const formatKey = (key) =>
+      decodeHtml(key ?? "")
+        .trim()
+        .replace(/([^\w_])+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "")
+        .toLowerCase();
+    return `${formatKey(code)}_${formatKey(name)}`;
+  }
+
   async updateStoreWithCoupons(storeData, existingStoreId) {
     try {
       // First update the store
@@ -448,21 +489,6 @@ class WordPressService {
       if (!storeResult.success) {
         throw new Error("Failed to update store");
       }
-
-      const normalizeCouponKey = (code, name) => {
-        const decodeHtml = (html) => {
-          const doc = new JSDOM(html || "");
-          return doc.window.document.documentElement.textContent || "";
-        };
-        const formatKey = (key) =>
-          decodeHtml(key ?? "")
-            .trim()
-            .replace(/([^\w_])+/g, "_")
-            .replace(/_+/g, "_")
-            .replace(/^_|_$/g, "")
-            .toLowerCase();
-        return `${formatKey(code)}_${formatKey(name)}`;
-      };
 
       // Get existing coupons for this store
       const existingCoupons = await this.getCouponsForStore(existingStoreId);
@@ -484,6 +510,8 @@ class WordPressService {
 
       for (const c of newCoupons) {
         const key = normalizeCouponKey(c.coupon_code, c.coupon_name);
+        console.log(`Processing coupon key: ${key}`);
+
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           uniqueCoupons.push(c);
