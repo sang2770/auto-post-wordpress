@@ -276,7 +276,8 @@ class GoogleSheetsService {
                         link: storeLink, // Default empty, can be updated later
                         discount_bag: discountBag,
                         is_verified: true, // Default to verified
-                        description: couponDescription
+                        description: couponDescription,
+                        priority: i // Add priority based on row index (earlier rows = lower numbers = higher priority)
                     };
 
                     // Initialize coupon array for store if it doesn't exist
@@ -304,8 +305,9 @@ class GoogleSheetsService {
                 image: ''
             };
 
-            // Get coupons for this store
+            // Get coupons for this store and sort by priority
             const coupons = couponMap.get(normalizedName) || [];
+            coupons.sort((a, b) => a.priority - b.priority); // Sort by priority (lower number = higher priority)
 
             const store = {
                 name: storeData.name,

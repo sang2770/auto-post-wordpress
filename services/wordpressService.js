@@ -298,6 +298,7 @@ class WordPressService {
           discount_bag: couponData.discount_bag,
           is_verified: couponData.is_verified !== false, // Default to true
           description: couponData.description || "",
+          priority: couponData.priority || 0,
         },
       };
       const response = await this.apiClient.post("/coupon", postData);
@@ -373,9 +374,8 @@ class WordPressService {
 
       return {
         success: true,
-        message: `Store "${storeData.name}" created with ${
-          couponResults.filter((c) => c.success).length
-        }/${coupons.length} coupons`,
+        message: `Store "${storeData.name}" created with ${couponResults.filter((c) => c.success).length
+          }/${coupons.length} coupons`,
         storeData: storeResult.data,
         coupons: couponResults,
         totalCoupons: coupons.length,
@@ -554,9 +554,8 @@ class WordPressService {
 
       return {
         success: true,
-        message: `Store "${storeData.name}" updated with ${
-          couponResults.filter((c) => c.success).length
-        }/${newCoupons.length} coupons`,
+        message: `Store "${storeData.name}" updated with ${couponResults.filter((c) => c.success).length
+          }/${newCoupons.length} coupons`,
         storeData: storeResult.data,
         coupons: couponResults,
         totalCoupons: newCoupons.length,
