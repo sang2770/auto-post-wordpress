@@ -293,8 +293,6 @@ class GoogleSheetsService {
 
         // Create final store objects with all data
         storeMap.forEach((storeData, normalizedName) => {
-            console.log("storeData:", storeData);
-
             // Get store info from sheet2
             const info = storeInfoMap.get(normalizedName) || {
                 name: storeData.name,
