@@ -225,20 +225,20 @@ class WordPressService {
 
   async updateStore(storeId, storeData) {
     try {
-      // Process featured image if provided
+      // // Process featured image if provided
       let featuredImageId = null;
-      if (storeData.image) {
-        console.log(
-          `Processing featured image for store update: ${storeData.name}`
-        );
-        featuredImageId = await this.imageService.processStoreImage(
-          storeData.image,
-          storeData.name
-        );
-        if (featuredImageId) {
-          console.log(`Featured image uploaded with ID: ${featuredImageId}`);
-        }
-      }
+      // if (storeData.image) {
+      //   console.log(
+      //     `Processing featured image for store update: ${storeData.name}`
+      //   );
+      //   featuredImageId = await this.imageService.processStoreImage(
+      //     storeData.image,
+      //     storeData.name
+      //   );
+      //   if (featuredImageId) {
+      //     console.log(`Featured image uploaded with ID: ${featuredImageId}`);
+      //   }
+      // }
 
       const postData = {
         title: storeData.name,
@@ -451,6 +451,21 @@ class WordPressService {
         throw new Error("Failed to update store");
       }
 
+      const normalizeCouponKey = (code, name) => {
+        const decodeHtml = (html) => {
+          const doc = new JSDOM(html || "");
+          return doc.window.document.documentElement.textContent || "";
+        };
+        const formatKey = (key) =>
+          decodeHtml(key ?? "")
+            .trim()
+            .replace(/([^\w_])+/g, "_")
+            .replace(/_+/g, "_")
+            .replace(/^_|_$/g, "")
+            .toLowerCase();
+        return `${formatKey(code)}_${formatKey(name)}`;
+      };
+
       // Get existing coupons for this store
       const existingCoupons = await this.getCouponsForStore(existingStoreId);
       const newCoupons = storeData.coupons || [];
@@ -458,28 +473,36 @@ class WordPressService {
 
       // Create a map of existing coupons by name+code for quick lookup
       const existingCouponMap = new Map();
-      const decodeHtml = (html) => {
-        const doc = new JSDOM(html);
-        return doc.window.document.documentElement.textContent;
-      };
-      const formatKey = (key) =>
-        decodeHtml(key ?? "")
-          ?.trim()
-          .replace(/([^\w_])+/g, '_')
-          .replace(/_+/g, '_').replace(/^_|_$/g, '') ?? "";
       existingCoupons.forEach((coupon) => {
-        const key = `${formatKey(coupon.acf?.coupon_code)}_${formatKey(
+        const key = normalizeCouponKey(
+          coupon.acf?.coupon_code,
           coupon.title?.rendered
-        )}`;
+        );
         existingCouponMap.set(key, coupon);
       });
 
+      const uniqueCoupons = [];
+      const seenKeys = new Set();
+
+      for (const c of newCoupons) {
+        const key = normalizeCouponKey(c.coupon_code, c.coupon_name);
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          uniqueCoupons.push(c);
+        } else {
+          console.log(
+            `Skipped duplicate coupon in sheet: ${c.coupon_name} for store: ${storeData.name}`
+          );
+        }
+      }
       // Process new coupons
-      for (const newCoupon of newCoupons) {
-        const couponKey = `${formatKey(newCoupon.coupon_code)}_${formatKey(
+      for (const newCoupon of uniqueCoupons) {
+        const couponKey = normalizeCouponKey(
+          newCoupon.coupon_code,
           newCoupon.coupon_name
-        )}`;
+        );
         const existingCoupon = existingCouponMap.get(couponKey);
+
         try {
           if (existingCoupon) {
             // Update existing coupon
@@ -538,20 +561,6 @@ class WordPressService {
           });
         }
       }
-
-      // Optionally delete coupons that are no longer in the sheet
-      // (Commented out for safety - you might want to keep old coupons)
-      /*
-            for (const [key, oldCoupon] of existingCouponMap) {
-                try {
-                    await this.deleteCoupon(oldCoupon.id);
-                    console.log(`Deleted old coupon: ${oldCoupon.title?.rendered || oldCoupon.title} for store: ${storeData.name}`);
-                } catch (error) {
-                    console.error(`Failed to delete old coupon ${oldCoupon.id}:`, error.message);
-                }
-            }
-            */
-
       return {
         success: true,
         message: `Store "${storeData.name}" updated with ${couponResults.filter((c) => c.success).length
