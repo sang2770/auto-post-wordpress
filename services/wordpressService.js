@@ -498,7 +498,7 @@ class WordPressService {
       // Create a map of existing coupons by name+code for quick lookup
       const existingCouponMap = new Map();
       existingCoupons.forEach((coupon) => {
-        const key = normalizeCouponKey(
+        const key = this.normalizeCouponKey(
           coupon.acf?.coupon_code,
           coupon.title?.rendered
         );
@@ -509,7 +509,7 @@ class WordPressService {
       const seenKeys = new Set();
 
       for (const c of newCoupons) {
-        const key = normalizeCouponKey(c.coupon_code, c.coupon_name);
+        const key = this.normalizeCouponKey(c.coupon_code, c.coupon_name);
         console.log(`Processing coupon key: ${key}`);
 
         if (!seenKeys.has(key)) {
@@ -523,7 +523,7 @@ class WordPressService {
       }
       // Process new coupons
       for (const newCoupon of uniqueCoupons) {
-        const couponKey = normalizeCouponKey(
+        const couponKey = this.normalizeCouponKey(
           newCoupon.coupon_code,
           newCoupon.coupon_name
         );
