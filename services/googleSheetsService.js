@@ -16,15 +16,15 @@ class GoogleSheetsService {
     }
 
     try {
-      const keyFilePath = path.join(__dirname, '..', 'keys', 'ggsheet-469714-97e5d118528a.json');
-      
+      const keyFilePath = path.join(__dirname, '..', 'data', 'ggsheet-469714-4a42f804ce04.json');
+
       this.auth = new google.auth.GoogleAuth({
         keyFile: keyFilePath,
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
 
       this.sheets = google.sheets({ version: 'v4', auth: this.auth });
-      
+
       console.log('Google Sheets API authentication initialized successfully');
       return this.auth;
     } catch (error) {
@@ -55,7 +55,7 @@ class GoogleSheetsService {
   async getInfoSheetsFromUrl(url) {
     try {
       await this.initAuth();
-      
+
       const spreadsheetId = this.extractSheetId(url);
       if (!spreadsheetId) {
         throw new Error(
@@ -82,7 +82,7 @@ class GoogleSheetsService {
       if (error.code === 404) {
         throw new Error(`Spreadsheet not found. Please check the URL and ensure the sheet exists.`);
       }
-      
+
       throw new Error(`Failed to check sheet availability: ${error.message}`);
     }
   }
@@ -451,7 +451,7 @@ class GoogleSheetsService {
   async readSheetValues(spreadsheetId, range) {
     try {
       await this.initAuth();
-      
+
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
         range,
@@ -471,7 +471,7 @@ class GoogleSheetsService {
   async writeSheetValues(spreadsheetId, range, values) {
     try {
       await this.initAuth();
-      
+
       const response = await this.sheets.spreadsheets.values.update({
         spreadsheetId,
         range,
@@ -499,7 +499,7 @@ class GoogleSheetsService {
   async appendSheetValues(spreadsheetId, range, values) {
     try {
       await this.initAuth();
-      
+
       const response = await this.sheets.spreadsheets.values.append({
         spreadsheetId,
         range,
@@ -528,7 +528,7 @@ class GoogleSheetsService {
   async mergeCells(spreadsheetId, sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex, mergeType = 'MERGE_ALL') {
     try {
       await this.initAuth();
-      
+
       const request = {
         spreadsheetId,
         requestBody: {
@@ -596,7 +596,7 @@ class GoogleSheetsService {
   async formatCells(spreadsheetId, sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex, format) {
     try {
       await this.initAuth();
-      
+
       const request = {
         spreadsheetId,
         requestBody: {
@@ -639,7 +639,7 @@ class GoogleSheetsService {
   async autoFitColumns(spreadsheetId, sheetId, startColumnIndex, endColumnIndex) {
     try {
       await this.initAuth();
-      
+
       const request = {
         spreadsheetId,
         requestBody: {
