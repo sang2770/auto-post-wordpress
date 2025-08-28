@@ -59,3 +59,6 @@ Your Google Sheets should have the following columns:
 - Column C: Guide
 - Column D: About
 - Column E: Q&A
+
+
+URL get AUth: https://console.cloud.google.com/iam-admin/serviceaccounts/details/111784935198263856971;edit=true/keys?project=ggsheet-469714

@@ -13,17 +13,25 @@
   <body>
     <div class="container">
       <header class="header">
-        <h1><i class="fas fa-store"></i> Auto Store Creator</h1>
-        <p>Automatically create WordPress stores from Google Sheets data</p>
+        <h1><i class="fas fa-store"></i> Trình Tạo Cửa Hàng Tự Động</h1>
+        <p>Tự động tạo cửa hàng WordPress từ dữ liệu Google Sheets</p>
+        <div class="navigation">
+          <a href="/" class="nav-link active">
+            <i class="fas fa-home"></i> Trang Chủ
+          </a>
+          <a href="/reports.html" class="nav-link">
+            <i class="fas fa-chart-bar"></i> Báo Cáo
+          </a>
+        </div>
       </header>
 
       <main class="main-content">
         <!-- Configuration Section -->
         <section class="card" id="config-section">
-          <h2><i class="fas fa-cog"></i> Configuration</h2>
+          <h2><i class="fas fa-cog"></i> Cấu Hình</h2>
           <form id="config-form">
             <div class="form-group">
-              <label for="store-sheets-url">Store & Coupons Sheet URL:</label>
+              <label for="store-sheets-url">URL Sheet Cửa Hàng & Coupon:</label>
               <input
                 type="url"
                 id="store-sheets-url"
@@ -31,14 +39,13 @@
                 required
               />
               <small
-                ><strong>Store Sheet:</strong> Contains store names and coupon
-                data (store name, coupon name, coupon_code, discount_value,
-                etc.)</small
+                ><strong>Sheet Cửa Hàng:</strong> Chứa tên cửa hàng và dữ liệu coupon
+                (tên cửa hàng, tên coupon, mã coupon, giá trị giảm giá, v.v.)</small
               >
             </div>
             <div class="form-group">
               <label for="storedetail-sheets-url"
-                >Store Details Sheet URL:</label
+                >URL Sheet Chi Tiết Cửa Hàng:</label
               >
               <input
                 type="url"
@@ -47,47 +54,47 @@
                 required
               />
               <small
-                ><strong>Store Details Sheet:</strong> Contains store
-                information (name, descriptions, about, guide, q_and_a)</small
+                ><strong>Sheet Chi Tiết Cửa Hàng:</strong> Chứa thông tin cửa hàng
+                (tên, mô tả, giới thiệu, hướng dẫn, q_and_a)</small
               >
             </div>
             <div class="form-group">
               <small
-                ><strong>Setup:</strong> 1. Open each Google Sheet → 2. "Tệp" →
-                "Chia Sẻ" → "Xuất bản lên web" → 3. Choose "Toàn bộ tài liệu"
-                and "Trang web" → 4. Click "Xuất bản" and paste each URL
-                above</small
+                ><strong>Cài Đặt:</strong> 1. Mở mỗi Google Sheet → 2. "Tệp" →
+                "Chia Sẻ" → "Xuất bản lên web" → 3. Chọn "Toàn bộ tài liệu"
+                và "Trang web" → 4. Nhấp "Xuất bản" và dán mỗi URL
+                ở trên</small
               >
             </div>
             <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save"></i> Save Configuration
+              <i class="fas fa-save"></i> Lưu Cấu Hình
             </button>
           </form>
         </section>
 
         <!-- Status Section -->
         <section class="card" id="status-section">
-          <h2><i class="fas fa-info-circle"></i> Status</h2>
+          <h2><i class="fas fa-info-circle"></i> Trạng Thái</h2>
           <div class="status-grid">
             <div class="status-item">
               <i class="fas fa-link"></i>
               <div>
-                <strong>Configuration</strong>
-                <span id="config-status">Not configured</span>
+                <strong>Cấu Hình</strong>
+                <span id="config-status">Chưa cấu hình</span>
               </div>
             </div>
             <div class="status-item">
               <i class="fas fa-clock"></i>
               <div>
-                <strong>Last Check</strong>
-                <span id="last-run">Never</span>
+                <strong>Kiểm Tra Cuối</strong>
+                <span id="last-run">Chưa có</span>
               </div>
             </div>
             <div class="status-item">
               <i class="fas fa-chart-line"></i>
               <div>
-                <strong>Polling Interval</strong>
-                <span id="polling-interval">5 minutes</span>
+                <strong>Khoảng Thời Gian Kiểm Tra</strong>
+                <span id="polling-interval">5 phút</span>
               </div>
             </div>
           </div>
@@ -95,37 +102,37 @@
 
         <!-- Actions Section -->
         <section class="card" id="actions-section">
-          <h2><i class="fas fa-tools"></i> Actions</h2>
+          <h2><i class="fas fa-tools"></i> Hành Động</h2>
           <div class="action-buttons">
             <button id="test-connection" class="btn btn-secondary">
-              <i class="fas fa-plug"></i> Test Connection
+              <i class="fas fa-plug"></i> Kiểm Tra Kết Nối
             </button>
             <button id="refresh-status" class="btn btn-secondary">
-              <i class="fas fa-sync-alt"></i> Refresh Status
+              <i class="fas fa-sync-alt"></i> Làm Mới Trạng Thái
             </button>
             <button id="create-stores-now" class="btn btn-success">
-              <i class="fas fa-rocket"></i> Create Stores Now
+              <i class="fas fa-rocket"></i> Tạo Cửa Hàng Ngay
             </button>
             <button id="view-stores" class="btn btn-secondary">
-              <i class="fas fa-list"></i> View Stores
+              <i class="fas fa-list"></i> Xem Cửa Hàng
             </button>
             <button id="export-excel" class="btn btn-primary">
-              <i class="fas fa-file-excel"></i> Export Excel
+              <i class="fas fa-file-excel"></i> Xuất Excel
             </button>
           </div>
         </section>
 
         <!-- Logs Section -->
         <section class="card" id="logs-section">
-          <h2><i class="fas fa-list"></i> Recent Activity</h2>
+          <h2><i class="fas fa-list"></i> Hoạt Động Gần Đây</h2>
           <div id="logs-container">
-            <p class="no-logs">No activity yet</p>
+            <p class="no-logs">Chưa có hoạt động nào</p>
           </div>
         </section>
 
         <!-- Data Preview Section -->
         <section class="card" id="preview-section" style="display: none">
-          <h2><i class="fas fa-table"></i> Data Preview</h2>
+          <h2><i class="fas fa-table"></i> Xem Trước Dữ Liệu</h2>
           <div id="preview-container" style="overflow: auto">
             <!-- Data preview will be loaded here -->
           </div>
@@ -133,7 +140,7 @@
 
         <!-- Store Management Section -->
         <section class="card" id="stores-section" style="display: none">
-          <h2><i class="fas fa-store"></i> Store Management</h2>
+          <h2><i class="fas fa-store"></i> Quản Lý Cửa Hàng</h2>
           <div id="stores-container">
             <!-- Store information will be loaded here -->
           </div>
@@ -146,7 +153,7 @@
       <!-- Loading Overlay -->
       <div id="loading-overlay" class="loading-overlay" style="display: none">
         <div class="spinner"></div>
-        <p>Processing...</p>
+        <p>Đang xử lý...</p>
       </div>
     </div>
 

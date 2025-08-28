@@ -9,6 +9,9 @@ const GoogleSheetsService = require('./services/googleSheetsService');
 const WordPressService = require('./services/wordpressService');
 const StorageService = require('./services/storageService');
 
+// Import routers
+const reportsRouter = require('./routes/reports');
+
 // Load environment variables
 dotenv.config();
 
@@ -30,6 +33,13 @@ const storageService = new StorageService();
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+app.get('/reports.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'reports.html'));
+});
+
+// Use routers
+app.use('/api/reports', reportsRouter);
 
 // API Routes
 app.post('/api/configure', async (req, res) => {

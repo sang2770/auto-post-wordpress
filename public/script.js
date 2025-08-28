@@ -44,12 +44,12 @@ class AutoStoreCreator {
         const storeDetailSheetsUrl = document.getElementById('storedetail-sheets-url').value.trim();
 
         if (!storeSheetsUrl || !storeDetailSheetsUrl) {
-            this.showMessage('Please enter both Google Sheets URLs', 'error');
+            this.showMessage('Vui lòng nhập cả hai URL Google Sheets', 'error');
             return;
         }
 
         if (!this.isValidGoogleSheetsUrl(storeSheetsUrl) || !this.isValidGoogleSheetsUrl(storeDetailSheetsUrl)) {
-            this.showMessage('Please enter valid Google Sheets URLs', 'error');
+            this.showMessage('Vui lòng nhập URL Google Sheets hợp lệ', 'error');
             return;
         }
 
@@ -70,8 +70,8 @@ class AutoStoreCreator {
             const result = await response.json();
 
             if (response.ok) {
-                this.showMessage('Configuration saved successfully!', 'success');
-                this.addLogEntry('Configuration updated', 'success');
+                this.showMessage('Cấu hình đã được lưu thành công!', 'success');
+                this.addLogEntry('Cập nhật cấu hình', 'success');
                 this.loadStatus();
 
                 // Show preview if data was fetched
@@ -79,11 +79,11 @@ class AutoStoreCreator {
                     this.testConnection();
                 }
             } else {
-                this.showMessage(result.error || 'Failed to save configuration', 'error');
+                this.showMessage(result.error || 'Không thể lưu cấu hình', 'error');
             }
         } catch (error) {
             console.error('Configuration error:', error);
-            this.showMessage('Failed to save configuration. Please try again.', 'error');
+            this.showMessage('Không thể lưu cấu hình. Vui lòng thử lại.', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -103,17 +103,17 @@ class AutoStoreCreator {
             const result = await response.json();
 
             if (response.ok) {
-                const message = `Connection successful! Found ${result.totalRows} total rows (${result.storeWithCouponsRows} store+coupon rows, ${result.storeInfoRows} store info). Processed ${result.processedStores} unique stores with ${result.totalCoupons} coupons.`;
+                const message = `Kết nối thành công! Tìm thấy ${result.totalRows} tổng dòng (${result.storeWithCouponsRows} dòng cửa hàng+coupon, ${result.storeInfoRows} thông tin cửa hàng). Đã xử lý ${result.processedStores} cửa hàng với ${result.totalCoupons} coupon.`;
                 this.showMessage(message, 'success');
-                this.addLogEntry(`Connection test successful - ${result.processedStores} stores with ${result.totalCoupons} coupons processed from ${result.totalRows} rows`, 'success');
+                this.addLogEntry(`Kiểm tra kết nối thành công - ${result.processedStores} cửa hàng với ${result.totalCoupons} coupon được xử lý từ ${result.totalRows} dòng`, 'success');
             } else {
-                this.showMessage(result.error || 'Connection test failed', 'error');
-                this.addLogEntry('Connection test failed', 'error');
+                this.showMessage(result.error || 'Kiểm tra kết nối thất bại', 'error');
+                this.addLogEntry('Kiểm tra kết nối thất bại', 'error');
             }
         } catch (error) {
             console.error('Connection test error:', error);
-            this.showMessage('Connection test failed. Please check your configuration.', 'error');
-            this.addLogEntry('Connection test failed', 'error');
+            this.showMessage('Kiểm tra kết nối thất bại. Vui lòng kiểm tra cấu hình của bạn.', 'error');
+            this.addLogEntry('Kiểm tra kết nối thất bại', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -121,12 +121,12 @@ class AutoStoreCreator {
 
     async createStoresNow() {
         // Confirm action with user
-        if (!confirm('This will create all stores from your Google Sheets data right now. Continue?')) {
+        if (!confirm('Điều này sẽ tạo tất cả cửa hàng từ dữ liệu Google Sheets của bạn ngay bây giờ. Tiếp tục?')) {
             return;
         }
 
         this.showLoading(true);
-        this.showMessage('Creating stores... This may take a few minutes.', 'info');
+        this.showMessage('Đang tạo cửa hàng... Có thể mất vài phút.', 'info');
 
         try {
             const response = await fetch('/api/create-stores-now', {
@@ -140,22 +140,22 @@ class AutoStoreCreator {
 
             if (response.ok) {
                 const { results } = result;
-                let message = `Process completed! Created ${results.storesCreated} stores`;
+                let message = `Quá trình hoàn thành! Đã tạo ${results.storesCreated} cửa hàng`;
 
                 if (results.storesUpdated > 0) {
-                    message += `, updated ${results.storesUpdated} stores`;
+                    message += `, cập nhật ${results.storesUpdated} cửa hàng`;
                 }
 
                 if (results.storesSkipped > 0) {
-                    message += `, skipped ${results.storesSkipped} duplicates`;
+                    message += `, bỏ qua ${results.storesSkipped} trùng lặp`;
                 }
 
                 if (results.errors && results.errors.length > 0) {
-                    message += `, ${results.errors.length} errors occurred`;
+                    message += `, ${results.errors.length} lỗi xảy ra`;
                 }
 
                 this.showMessage(message, 'success');
-                this.addLogEntry(`Manual creation: ${results.storesCreated} created, ${results.storesUpdated || 0} updated, ${results.storesSkipped} skipped`, 'success');
+                this.addLogEntry(`Tạo thủ công: ${results.storesCreated} đã tạo, ${results.storesUpdated || 0} đã cập nhật, ${results.storesSkipped} đã bỏ qua`, 'success');
 
                 // Show detailed results
                 this.showCreateResults(results);
@@ -163,13 +163,13 @@ class AutoStoreCreator {
                 // Refresh status
                 this.loadStatus();
             } else {
-                this.showMessage(result.error || 'Failed to create stores', 'error');
-                this.addLogEntry('Manual store creation failed', 'error');
+                this.showMessage(result.error || 'Không thể tạo cửa hàng', 'error');
+                this.addLogEntry('Tạo cửa hàng thủ công thất bại', 'error');
             }
         } catch (error) {
             console.error('Create stores error:', error);
-            this.showMessage('Failed to create stores. Please try again.', 'error');
-            this.addLogEntry('Manual store creation failed', 'error');
+            this.showMessage('Không thể tạo cửa hàng. Vui lòng thử lại.', 'error');
+            this.addLogEntry('Tạo cửa hàng thủ công thất bại', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -182,18 +182,18 @@ class AutoStoreCreator {
 
             // Update status display
             document.getElementById('config-status').textContent =
-                status.configured ? 'Configured ✓' : 'Not configured';
+                status.configured ? 'Đã cấu hình ✓' : 'Chưa cấu hình';
 
             document.getElementById('last-run').textContent =
-                status.lastRun ? this.formatDateTime(status.lastRun.timestamp) : 'Never';
+                status.lastRun ? this.formatDateTime(status.lastRun.timestamp) : 'Chưa có';
 
             document.getElementById('polling-interval').textContent =
-                `${status.pollingInterval} minutes`;
+                `${status.pollingInterval} phút`;
 
             // Load and populate configuration form if configured
             if (status.configured && status.sheetId) {
                 await this.loadConfiguration();
-                this.addLogEntry('Status loaded successfully', 'success');
+                this.addLogEntry('Trạng thái đã được tải thành công', 'success');
             }
 
             // Enable/disable test button based on configuration
@@ -201,7 +201,7 @@ class AutoStoreCreator {
 
         } catch (error) {
             console.error('Status loading error:', error);
-            this.addLogEntry('Failed to load status', 'error');
+            this.addLogEntry('Không thể tải trạng thái', 'error');
         }
     }
 
@@ -232,17 +232,8 @@ class AutoStoreCreator {
                 if ((config.storeSheetsUrl && config.storeSheetsUrl !== 'Not set') ||
                     (config.storeDetailSheetsUrl && config.storeDetailSheetsUrl !== 'Not set')) {
                     // Show success message
-                    this.addLogEntry('Configuration auto-filled from saved data', 'success');
+                    this.addLogEntry('Cấu hình được điền tự động từ dữ liệu đã lưu', 'success');
                     console.log('Auto-filled Google Sheets URL from existing configuration');
-
-                    // Reset visual styling after a few seconds
-                    setTimeout(() => {
-                        sheetsUrlInput.style.borderColor = '';
-                        sheetsUrlInput.style.backgroundColor = '';
-                        if (!sheetsUrlInput.value) {
-                            sheetsUrlInput.placeholder = originalPlaceholder;
-                        }
-                    }, 3000);
                 }
             }
         } catch (error) {
@@ -258,16 +249,16 @@ class AutoStoreCreator {
             const storesResponse = await fetch('/api/stores?limit=20');
             const storesResult = await storesResponse.json();
             if (storesResponse.ok) {
-                this.addLogEntry(`Viewed stores: ${storesResult.totalCount} total, showing recent ${storesResult.stores.length}`, 'success');
+                this.addLogEntry(`Đã xem cửa hàng: ${storesResult.totalCount} tổng, hiển thị ${storesResult.stores.length} gần đây`, 'success');
                 this.showStoreList(storesResult.stores, storesResult.count);
             } else {
-                this.showMessage(storesResult.error || 'Failed to fetch stores', 'error');
-                this.addLogEntry('Failed to fetch stores', 'error');
+                this.showMessage(storesResult.error || 'Không thể lấy danh sách cửa hàng', 'error');
+                this.addLogEntry('Không thể lấy danh sách cửa hàng', 'error');
             }
         } catch (error) {
             console.error('View stores error:', error);
-            this.showMessage('Failed to fetch stores. Please check your WordPress connection.', 'error');
-            this.addLogEntry('Failed to fetch stores', 'error');
+            this.showMessage('Không thể lấy danh sách cửa hàng. Vui lòng kiểm tra kết nối WordPress.', 'error');
+            this.addLogEntry('Không thể lấy danh sách cửa hàng', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -279,15 +270,15 @@ class AutoStoreCreator {
 
         const html = `
             <div class="store-list">
-                <h3>WordPress Stores (${totalCount} total, showing recent ${stores.length})</h3>
+                <h3>Cửa Hàng WordPress (${totalCount} tổng, hiển thị ${stores.length} gần đây)</h3>
                 <table class="preview-table">
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Title</th>
-                            <th>Status</th>
-                            <th>Date</th>
-                            <th>Action</th>
+                            <th>Tiêu Đề</th>
+                            <th>Trạng Thái</th>
+                            <th>Ngày</th>
+                            <th>Hành Động</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -296,10 +287,10 @@ class AutoStoreCreator {
                                 <td>${store.id}</td>
                                 <td>${store.title}</td>
                                 <td><span class="status-badge ${store.status}">${store.status}</span></td>
-                                <td>${new Date(store.date).toLocaleDateString()}</td>
+                                <td>${new Date(store.date).toLocaleDateString('vi-VN')}</td>
                                 <td>
                                     <a href="${store.link}" target="_blank" class="btn-link">
-                                        <i class="fas fa-external-link-alt"></i> View
+                                        <i class="fas fa-external-link-alt"></i> Xem
                                     </a>
                                 </td>
                             </tr>
@@ -319,39 +310,39 @@ class AutoStoreCreator {
 
         const html = `
             <div class="create-results">
-                <h3>Store Creation Results</h3>
+                <h3>Kết Quả Tạo Cửa Hàng</h3>
                 <div class="stats-grid">
                     <div class="stat-item success">
-                        <strong>Stores Created:</strong> ${results.storesCreated}
+                        <strong>Cửa Hàng Đã Tạo:</strong> ${results.storesCreated}
                     </div>
                     <div class="stat-item success">
-                        <strong>Stores Updated:</strong> ${results.storesUpdated || 0}
+                        <strong>Cửa Hàng Đã Cập Nhật:</strong> ${results.storesUpdated || 0}
                     </div>
                     <div class="stat-item success">
-                        <strong>Coupons Created:</strong> ${results.couponsCreated || 0}
+                        <strong>Coupon Đã Tạo:</strong> ${results.couponsCreated || 0}
                     </div>
                     <div class="stat-item success">
-                        <strong>Images Processed:</strong> ${results.imagesProcessed || 0}
+                        <strong>Hình Ảnh Đã Xử Lý:</strong> ${results.imagesProcessed || 0}
                     </div>
                     <div class="stat-item warning">
-                        <strong>Images Skipped:</strong> ${results.imagesSkipped || 0}
+                        <strong>Hình Ảnh Bỏ Qua:</strong> ${results.imagesSkipped || 0}
                     </div>
                     <div class="stat-item warning">
-                        <strong>Duplicates Skipped:</strong> ${results.storesSkipped}
+                        <strong>Trùng Lặp Bỏ Qua:</strong> ${results.storesSkipped}
                     </div>
                     <div class="stat-item">
-                        <strong>Total from Sheets:</strong> ${results.totalFromSheet}
+                        <strong>Tổng Từ Sheets:</strong> ${results.totalFromSheet}
                     </div>
                     <div class="stat-item">
-                        <strong>Existing in WordPress:</strong> ${results.existingInWordPress}
+                        <strong>Có Sẵn Trong WordPress:</strong> ${results.existingInWordPress}
                     </div>
                     <div class="stat-item">
-                        <strong>Store+Coupon Rows:</strong> ${results.storeWithCouponsRows || 0}
+                        <strong>Dòng Cửa Hàng+Coupon:</strong> ${results.storeWithCouponsRows || 0}
                     </div>
                 </div>
                 ${results.errors && results.errors.length > 0 ? `
                     <div class="errors-section">
-                        <h4>Errors (${results.errors.length}):</h4>
+                        <h4>Lỗi (${results.errors.length}):</h4>
                         <div class="error-list">
                             ${results.errors.map(error => `
                                 <div class="error-item">
@@ -364,9 +355,9 @@ class AutoStoreCreator {
                 ` : ''}
                 <div class="success-message">
                     <i class="fas fa-check-circle"></i>
-                    Store creation process completed successfully!
-                    ${results.couponsCreated > 0 ? `<br><small>Created ${results.couponsCreated} coupons across all stores</small>` : ''}
-                    ${results.imagesProcessed > 0 ? `<br><small>Processed ${results.imagesProcessed} featured images</small>` : ''}
+                    Quá trình tạo cửa hàng hoàn thành thành công!
+                    ${results.couponsCreated > 0 ? `<br><small>Đã tạo ${results.couponsCreated} coupon trên tất cả cửa hàng</small>` : ''}
+                    ${results.imagesProcessed > 0 ? `<br><small>Đã xử lý ${results.imagesProcessed} hình ảnh nổi bật</small>` : ''}
                 </div>
             </div>
         `;
@@ -377,7 +368,7 @@ class AutoStoreCreator {
 
     async exportExcel() {
         this.showLoading(true);
-        this.showMessage('Preparing Excel export... This may take a few minutes.', 'info');
+        this.showMessage('Đang chuẩn bị xuất Excel... Có thể mất vài phút.', 'info');
 
         try {
             const response = await fetch('/api/export-excel', {
@@ -411,17 +402,17 @@ class AutoStoreCreator {
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
 
-                this.showMessage('Excel file downloaded successfully!', 'success');
-                this.addLogEntry(`Excel export completed - ${filename}`, 'success');
+                this.showMessage('Tệp Excel đã được tải xuống thành công!', 'success');
+                this.addLogEntry(`Xuất Excel hoàn thành - ${filename}`, 'success');
             } else {
                 const result = await response.json();
-                this.showMessage(result.error || 'Export failed', 'error');
-                this.addLogEntry('Excel export failed', 'error');
+                this.showMessage(result.error || 'Xuất thất bại', 'error');
+                this.addLogEntry('Xuất Excel thất bại', 'error');
             }
         } catch (error) {
             console.error('Export error:', error);
-            this.showMessage('Export failed. Please try again.', 'error');
-            this.addLogEntry('Excel export failed', 'error');
+            this.showMessage('Xuất thất bại. Vui lòng thử lại.', 'error');
+            this.addLogEntry('Xuất Excel thất bại', 'error');
         } finally {
             this.showLoading(false);
         }
