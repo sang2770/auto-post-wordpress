@@ -430,6 +430,45 @@ app.post('/api/create-stores-now', async (req, res) => {
     }
 });
 
+// Helper function to compare store data for changes
+function hasStoreChanged(currentStore, previousStore) {
+    if (!previousStore) return true;
+
+    // Compare basic store properties
+    const storeProps = ['name', 'description', 'about', 'guide', 'qa', 'image'];
+    for (const prop of storeProps) {
+        if (currentStore[prop] !== previousStore[prop]) {
+            return true;
+        }
+    }
+
+    // Compare coupons
+    const currentCoupons = currentStore.coupons || [];
+    const previousCoupons = previousStore.coupons || [];
+
+    if (currentCoupons.length !== previousCoupons.length) {
+        return true;
+    }
+
+    // Sort coupons by name for consistent comparison
+    const sortedCurrent = [...currentCoupons].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const sortedPrevious = [...previousCoupons].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    for (let i = 0; i < sortedCurrent.length; i++) {
+        const currentCoupon = sortedCurrent[i];
+        const previousCoupon = sortedPrevious[i];
+
+        const couponProps = ['name', 'code', 'discountValue', 'description', 'isDeal', 'isVerified'];
+        for (const prop of couponProps) {
+            if (currentCoupon[prop] !== previousCoupon[prop]) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 // Shared function to process stores with duplicate checking
 async function processStores(currentData, options = {}) {
     const { isManualTrigger = false } = options;
@@ -444,10 +483,30 @@ async function processStores(currentData, options = {}) {
         console.log('Continuing without duplicate checking...');
     }
 
+    // Get previous data for comparison
+    console.log('Fetching previous data for change comparison...');
+    const lastData = await storageService.getLastData();
+    let previousStores = [];
+    if (lastData) {
+        try {
+            previousStores = googleSheetsService.processSheetData(lastData);
+        } catch (error) {
+            console.error('Failed to process previous data:', error.message);
+            console.log('Continuing without change comparison...');
+        }
+    }
+
+    // Create a map of previous stores for quick lookup
+    const previousStoresMap = new Map();
+    previousStores.forEach(store => {
+        previousStoresMap.set(store.name.toLowerCase(), store);
+    });
+
     const newStores = googleSheetsService.processSheetData(currentData);
     let createdCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
+    let unchangedCount = 0;
     let errors = [];
     let totalCouponsCreated = 0;
     let imagesProcessed = 0;
@@ -458,7 +517,17 @@ async function processStores(currentData, options = {}) {
             // Check for duplicates
             const duplicateCheck = wordpressService.checkDuplicate(store, existingStores);
             if (duplicateCheck.isDuplicate) {
-                console.log(`Found existing store: ${store.name}, updating...`);
+                // Check if store data has actually changed
+                const previousStore = previousStoresMap.get(store.name.toLowerCase());
+                const hasChanged = hasStoreChanged(store, previousStore);
+
+                if (!hasChanged) {
+                    console.log(`No changes detected for store: ${store.name}, skipping update`);
+                    unchangedCount++;
+                    continue;
+                }
+
+                console.log(`Found existing store: ${store.name}, ${hasChanged ? 'changes detected, updating' : 'forcing update (manual trigger)'}...`);
 
                 // Update existing store and its coupons
                 const result = await wordpressService.updateStoreWithCoupons(store, duplicateCheck.existingStore.id);
@@ -550,6 +619,7 @@ async function processStores(currentData, options = {}) {
         storesCreated: createdCount,
         storesUpdated: updatedCount,
         storesSkipped: skippedCount,
+        storesUnchanged: unchangedCount,
         totalRows: currentData.totalRows || 0,
         storeWithCouponsRows: currentData.storeListWithCoupons?.length || 0,
         storeInfoRows: currentData.storeInfo?.length || 0,
@@ -559,18 +629,19 @@ async function processStores(currentData, options = {}) {
         imagesProcessed: imagesProcessed,
         imagesSkipped: imagesSkipped,
         errors: errors,
-        hasChanges: true,
+        hasChanges: createdCount > 0 || updatedCount > 0,
         ...(isManualTrigger && { manualTrigger: true })
     };
     await storageService.saveLastRun(runInfo);
 
     const logMessage = isManualTrigger ? 'Manual creation' : 'Processing';
-    console.log(`${logMessage} complete. Created ${createdCount} stores, updated ${updatedCount} stores, with ${totalCouponsCreated} coupons processed, ${imagesProcessed} images processed, skipped ${skippedCount} duplicates.`);
+    console.log(`${logMessage} complete. Created ${createdCount} stores, updated ${updatedCount} stores, unchanged ${unchangedCount} stores, with ${totalCouponsCreated} coupons processed, ${imagesProcessed} images processed, skipped ${skippedCount} duplicates.`);
 
     return {
         storesCreated: createdCount,
         storesUpdated: updatedCount,
         storesSkipped: skippedCount,
+        storesUnchanged: unchangedCount,
         totalFromSheet: newStores.length,
         existingInWordPress: existingStores.length,
         couponsCreated: totalCouponsCreated,
@@ -635,7 +706,7 @@ async function generateDailyReport() {
         console.log('Generating daily report...');
 
         const config = await storageService.getConfig();
-        
+
         // Check if report configuration exists
         if (!config?.dataUrl || !config?.reportUrl) {
             console.log('No report configuration found, skipping daily report generation');
@@ -654,7 +725,7 @@ async function generateDailyReport() {
 
         // Import the functions from reports route
         const { processDataByStore, writeReportToSheet } = require('./routes/reports');
-        
+
         // Process data by store
         const reportData = processDataByStore(rawData);
 
