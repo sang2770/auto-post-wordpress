@@ -162,19 +162,36 @@ router.get("/stores", async (req, res) => {
 });
 
 function parseDataNumber(data) {
-    try {
-        if (typeof data === "string") {
-            // Remove dots, commas, spaces, currency symbols (like "đ", "$")
-            const formatData = data
-            .replaceAll(/[.\sđ$]/g, "")
-            .replaceAll(",", ".");
-            return parseFloat(formatData) || 0;
-        }
-        return parseFloat(data) || 0;
-    } catch (error) {
-        console.error("Error parsing data number:", error);
-        return 0;
+  try {
+    if (typeof data === "string") {
+      // Remove dots, commas, spaces, currency symbols (like "đ", "$")
+      const formatData = data.replaceAll(/[.\sđ$]/g, "").replaceAll(",", ".");
+      return parseFloat(formatData) || 0;
     }
+    return parseFloat(data) || 0;
+  } catch (error) {
+    console.error("Error parsing data number:", error);
+    return 0;
+  }
+}
+
+// Helper function to convert column letter to index (A=0, B=1, etc.)
+function getColumnIndex(columnLetter) {
+  let result = 0;
+  for (let i = 0; i < columnLetter.length; i++) {
+    result = result * 26 + (columnLetter.charCodeAt(i) - 64);
+  }
+  return result - 1;
+}
+
+// Helper function to convert column index to letter (0=A, 1=B, etc.)
+function getColumnLetter(columnIndex) {
+  let result = "";
+  while (columnIndex >= 0) {
+    result = String.fromCharCode((columnIndex % 26) + 65) + result;
+    columnIndex = Math.floor(columnIndex / 26) - 1;
+  }
+  return result;
 }
 // Process data by store for a specific date
 function processDataByStore(rawData) {
@@ -182,13 +199,13 @@ function processDataByStore(rawData) {
   rawData.forEach((row, index) => {
     // Get store name (try different possible column names)
     const storeName = row[3];
-    if (!storeName || index <=1) {
+    if (!storeName || index <= 1) {
       return;
     }
-    const spend = parseDataNumber(row[14] || '0');
-    const clicks = parseDataNumber(row[15] || '0');
-    const commission = parseDataNumber(row[16] || '0');
-    const benefit = parseDataNumber(row[17] || '0');
+    const spend = parseDataNumber(row[14] || "0");
+    const clicks = parseDataNumber(row[15] || "0");
+    const commission = parseDataNumber(row[16] || "0");
+    const benefit = parseDataNumber(row[17] || "0");
     if (!storeData[storeName]) {
       storeData[storeName] = {
         records: [],
@@ -219,102 +236,220 @@ async function writeReportToSheet(reportUrl, reportData, targetDate) {
   try {
     const spreadsheetId = googleSheetsService.extractSheetId(reportUrl);
     const gid = googleSheetsService.extractGid(reportUrl);
-    
+
     if (!spreadsheetId) {
-      throw new Error('Invalid report sheet URL');
+      throw new Error("Invalid report sheet URL");
     }
-    const spreadsheet = await googleSheetsService.getInfoSheetsFromUrl(reportUrl);
+    const spreadsheet = await googleSheetsService.getInfoSheetsFromUrl(
+      reportUrl
+    );
 
     // Get sheet name from GID
-    const sheetName = spreadsheet.sheets?.find(sheet => sheet.properties?.sheetId == gid)?.properties?.title || 'Sheet1';
+    const sheetName =
+      spreadsheet.sheets?.find((sheet) => sheet.properties?.sheetId == gid)
+        ?.properties?.title || "Sheet1";
 
     console.log("Report data structure:");
     console.log("Date:", targetDate);
     console.log("Stores:", Object.keys(reportData));
 
-    // Read existing data to find the next available column set
-    const existingData = await googleSheetsService.readSheetValues(spreadsheetId, `${sheetName}!A:Z`);
-    // Get store existed from A3 -> bottom
-    const existingStores = existingData.slice(2).map(row => row[0]).filter(Boolean);
+    // Get previous report data for comparison
+    const previousReport = await storageService.getLastReport();
+    const previousData = previousReport?.data || {};
 
-    // Find the next available column (looking for groups of 3 columns: B-D, E-G, H-J, etc.)
-    let nextColumnStart = 'B'; // Start from column B
+    // Read existing data to find the next available column set
+    const existingData = await googleSheetsService.readSheetValues(
+      spreadsheetId,
+      `${sheetName}!A:CV`
+    ); // Read up to column CV (100 columns)
+    // Get store existed from A3 -> bottom
+    const existingStores = existingData
+      .slice(2)
+      .map((row) => row[0])
+      .filter(Boolean);
+
+    // Find the next available column (looking for groups of 5 columns: B-F, G-K, L-P, etc.)
+    let nextColumnStart = "B"; // Start from column B
     let colIndex = 1; // B = index 1
-    
+
     if (existingData.length > 0) {
-      // Find the first empty group of 3 columns
-      while (colIndex < 26) { // Limit to column Z
-        const col1 = String.fromCharCode(65 + colIndex);
-        
-        // Check if all 3 columns are empty in row 1
+      // Find the first empty group of 5 columns (4 data + 1 change column)
+      const maxColumns = 100; // Allow up to column CV (100 columns should be enough)
+      while (colIndex < maxColumns) {
+        const col1 = getColumnLetter(colIndex);
+
+        // Check if all 5 columns are empty in row 1
         const row1 = existingData[0] || [];
-        if (!row1[colIndex] && !row1[colIndex + 1] && !row1[colIndex + 2]) {
+        if (
+          !row1[colIndex] &&
+          !row1[colIndex + 1] &&
+          !row1[colIndex + 2] &&
+          !row1[colIndex + 3] &&
+          !row1[colIndex + 4]
+        ) {
           nextColumnStart = col1;
           break;
         }
-        colIndex += 4;
+        colIndex += 5; // Move to next group of 5 columns
       }
     }
 
     // Prepare the data structure
-    const stores = [...existingStores, ...Object.keys(reportData).filter(store => !existingStores.includes(store))];
+    const stores = [
+      ...existingStores,
+      ...Object.keys(reportData).filter(
+        (store) => !existingStores.includes(store)
+      ),
+    ];
     // Prepare the data to write
     const dataToWrite = [];
-    
-    // Row 1: Date (merged across 4 columns) - we'll put the date in the first column
-    dataToWrite.push([targetDate, '', '', '']);
-    
+
+    // Row 1: Date (merged across 5 columns) - we'll put the date in the first column
+    dataToWrite.push([targetDate, "", "", "", ""]);
+
     // Row 2: Headers
-    dataToWrite.push(['Số Tiền Chạy(VNĐ)', 'Click', 'CĐ', 'Tiền Hoa Hồng ($)']);
-    
-    // Rows 3+: Store data
-    stores.forEach(storeName => {
+    dataToWrite.push([
+      "Số Tiền Chạy(VNĐ)",
+      "Click",
+      "CĐ",
+      "Tiền Hoa Hồng ($)",
+      "Trạng thái",
+    ]);
+
+    // Rows 3+: Store data with change calculation
+    stores.forEach((storeName) => {
       const storeData = reportData[storeName];
+      const previousStoreData = previousData[storeName];
+
       if (!storeData) {
-        dataToWrite.push(['', '', '', '']);
+        dataToWrite.push(["", "", "", "", ""]);
       } else {
+        // Calculate changes from previous report
+        let changeIndicator = "Mới"; // Default for new stores
+
+        if (
+          previousStoreData &&
+          (storeData.totalSpend != previousStoreData.totalSpend ||
+            storeData.totalClicks != previousStoreData.totalClicks ||
+            storeData.totalCommission != previousStoreData.totalCommission ||
+            storeData.totalBenefit != previousStoreData.totalBenefit)
+        ) {
+          changeIndicator = "Thay Đổi";
+        } else if (previousStoreData) {
+          changeIndicator = "";
+        }
+
         dataToWrite.push([
           storeData.totalSpend,
           storeData.totalClicks,
           storeData.totalCommission,
           storeData.totalBenefit,
+          changeIndicator,
         ]);
       }
     });
 
-    // If this is the first report (starting at column B), add store names in column A
-    if (nextColumnStart === 'B') {
-      const storeNamesData = [];
-      storeNamesData.push(['']); // A1 empty
-      storeNamesData.push(['']); // A2 empty  
-      stores.forEach(storeName => {
-        storeNamesData.push([storeName]);
-      });
-      
-      // Write store names in column A
-      const storeNamesRange = `${sheetName}!A1:A${storeNamesData.length}`;
-      console.log(`Writing store names to range: ${storeNamesRange}`);
+    const storeNamesData = [];
+    storeNamesData.push([""]); // A1 empty
+    storeNamesData.push([""]); // A2 empty
+    stores.forEach((storeName) => {
+      storeNamesData.push([storeName]);
+    });
 
-      await googleSheetsService.writeSheetValues(spreadsheetId, storeNamesRange, storeNamesData);
-    }
+    // Write store names in column A
+    const storeNamesRange = `${sheetName}!A1:A${storeNamesData.length}`;
+    console.log(`Writing store names to range: ${storeNamesRange}`);
+
+    await googleSheetsService.writeSheetValues(
+      spreadsheetId,
+      storeNamesRange,
+      storeNamesData
+    );
 
     // Write the report data starting from the determined column
-    const endCol = String.fromCharCode(nextColumnStart.charCodeAt(0) + 3);
+    const endCol = getColumnLetter(getColumnIndex(nextColumnStart) + 4); // 5 columns total (0-4)
     const dataRange = `${sheetName}!${nextColumnStart}1:${endCol}${dataToWrite.length}`;
-    
-    await googleSheetsService.writeSheetValues(spreadsheetId, dataRange, dataToWrite);
 
-    console.log(`Successfully wrote report data to sheet starting at column ${nextColumnStart}`);
+    console.log(`Writing data to range: ${dataRange}`);
+    await googleSheetsService.writeSheetValues(
+      spreadsheetId,
+      dataRange,
+      dataToWrite
+    );
+
+    // Merge the date header cells (row 1, columns across 5 columns)
+    const startColIndex = getColumnIndex(nextColumnStart); // Convert column letter to index (A=0, B=1, etc.)
+    const endColIndex = startColIndex + 5; // Merge 5 columns
+
+    try {
+      await googleSheetsService.mergeCells(
+        spreadsheetId,
+        gid || 0, // Use GID if available, otherwise default sheet (0)
+        0, // Start row index (row 1 = index 0)
+        1, // End row index (row 1 = index 1, exclusive)
+        startColIndex, // Start column index
+        endColIndex, // End column index (exclusive)
+        "MERGE_ALL"
+      );
+      console.log(
+        `Successfully merged date header cells from column ${nextColumnStart} to ${getColumnLetter(
+          endColIndex - 1
+        )}`
+      );
+
+      // Apply center alignment and bold formatting to the merged date header
+      const centerFormat = {
+        horizontalAlignment: "CENTER",
+        verticalAlignment: "MIDDLE",
+        textFormat: {
+          bold: true,
+          fontSize: 12,
+        },
+      };
+
+      await googleSheetsService.formatCells(
+        spreadsheetId,
+        gid || 0,
+        0, // Start row index (row 1 = index 0)
+        1, // End row index (row 1 = index 1, exclusive)
+        startColIndex, // Start column index
+        endColIndex, // End column index (exclusive)
+        centerFormat
+      );
+      console.log(
+        `Successfully applied center alignment and bold formatting to date header`
+      );
+    } catch (mergeError) {
+      console.warn(
+        `Warning: Could not merge cells for date header: ${mergeError.message}`
+      );
+      // Continue execution even if merge fails
+    }
+
+    // Save current report data for future comparison
+    try {
+      await storageService.saveLastReport(reportData);
+      console.log(
+        "Successfully saved current report data for future comparison"
+      );
+    } catch (saveError) {
+      console.warn(`Warning: Could not save report data: ${saveError.message}`);
+    }
+
+    console.log(
+      `Successfully wrote report data to sheet starting at column ${nextColumnStart}`
+    );
     return {
       success: true,
       startColumn: nextColumnStart,
       endColumn: endCol,
       stores: stores.length,
-      date: targetDate
+      date: targetDate,
+      changesTracked: !!previousReport,
+      previousReportDate: previousReport?.timestamp || null,
     };
-
   } catch (error) {
-    console.error('Error writing to Google Sheets:', error);
+    console.error("Error writing to Google Sheets:", error);
     throw new Error(`Failed to write report to sheet: ${error.message}`);
   }
 }

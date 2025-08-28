@@ -7,6 +7,7 @@ class StorageService {
         this.configFile = path.join(this.dataDir, 'config.json');
         this.lastDataFile = path.join(this.dataDir, 'lastData.json');
         this.lastRunFile = path.join(this.dataDir, 'lastRun.json');
+        this.lastReportFile = path.join(this.dataDir, 'lastReport.json');
 
         this.ensureDataDirectory();
     }
@@ -90,10 +91,37 @@ class StorageService {
             await Promise.all([
                 fs.unlink(this.configFile).catch(() => { }),
                 fs.unlink(this.lastDataFile).catch(() => { }),
-                fs.unlink(this.lastRunFile).catch(() => { })
+                fs.unlink(this.lastRunFile).catch(() => { }),
+                fs.unlink(this.lastReportFile).catch(() => { })
             ]);
         } catch (error) {
             console.error('Error clearing data:', error);
+            throw error;
+        }
+    }
+
+    async saveLastReport(reportData) {
+        try {
+            const reportInfo = {
+                timestamp: new Date().toISOString(),
+                data: reportData
+            };
+            await fs.writeFile(this.lastReportFile, JSON.stringify(reportInfo, null, 2));
+        } catch (error) {
+            console.error('Error saving last report:', error);
+            throw error;
+        }
+    }
+
+    async getLastReport() {
+        try {
+            const data = await fs.readFile(this.lastReportFile, 'utf8');
+            return JSON.parse(data);
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                return null; // File doesn't exist
+            }
+            console.error('Error reading last report:', error);
             throw error;
         }
     }

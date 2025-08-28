@@ -523,6 +523,89 @@ class GoogleSheetsService {
       throw new Error(`Failed to append sheet values: ${error.message}`);
     }
   }
+
+  // Merge cells in a specific range
+  async mergeCells(spreadsheetId, sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex, mergeType = 'MERGE_ALL') {
+    try {
+      await this.initAuth();
+      
+      const request = {
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              mergeCells: {
+                range: {
+                  sheetId: parseInt(sheetId),
+                  startRowIndex: startRowIndex,
+                  endRowIndex: endRowIndex,
+                  startColumnIndex: startColumnIndex,
+                  endColumnIndex: endColumnIndex,
+                },
+                mergeType: mergeType, // MERGE_ALL, MERGE_COLUMNS, or MERGE_ROWS
+              },
+            },
+          ],
+        },
+      };
+
+      const response = await this.sheets.spreadsheets.batchUpdate(request);
+      console.log(`Successfully merged cells from row ${startRowIndex} to ${endRowIndex - 1}, column ${startColumnIndex} to ${endColumnIndex - 1}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error merging cells:", error);
+      if (error.code === 403) {
+        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+      }
+      if (error.code === 400) {
+        throw new Error(`Invalid merge request: ${error.message}`);
+      }
+      throw new Error(`Failed to merge cells: ${error.message}`);
+    }
+  }
+
+  // Format cells (apply styling like center alignment, bold, etc.)
+  async formatCells(spreadsheetId, sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex, format) {
+    try {
+      await this.initAuth();
+      
+      const request = {
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              repeatCell: {
+                range: {
+                  sheetId: parseInt(sheetId),
+                  startRowIndex: startRowIndex,
+                  endRowIndex: endRowIndex,
+                  startColumnIndex: startColumnIndex,
+                  endColumnIndex: endColumnIndex,
+                },
+                cell: {
+                  userEnteredFormat: format,
+                },
+                fields: 'userEnteredFormat',
+              },
+            },
+          ],
+        },
+      };
+
+      const response = await this.sheets.spreadsheets.batchUpdate(request);
+      console.log(`Successfully formatted cells from row ${startRowIndex} to ${endRowIndex - 1}, column ${startColumnIndex} to ${endColumnIndex - 1}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error formatting cells:", error);
+      if (error.code === 403) {
+        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+      }
+      if (error.code === 400) {
+        throw new Error(`Invalid format request: ${error.message}`);
+      }
+      throw new Error(`Failed to format cells: ${error.message}`);
+    }
+  }
 }
 
 module.exports = GoogleSheetsService;
