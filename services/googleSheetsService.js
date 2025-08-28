@@ -545,12 +545,40 @@ class GoogleSheetsService {
                 mergeType: mergeType, // MERGE_ALL, MERGE_COLUMNS, or MERGE_ROWS
               },
             },
+            {
+              repeatCell: {
+                range: {
+                  sheetId: parseInt(sheetId),
+                  startRowIndex: startRowIndex,
+                  endRowIndex: endRowIndex,
+                  startColumnIndex: startColumnIndex,
+                  endColumnIndex: endColumnIndex,
+                },
+                cell: {
+                  userEnteredFormat: {
+                    horizontalAlignment: 'CENTER',
+                    verticalAlignment: 'MIDDLE',
+                    textFormat: {
+                      bold: true,
+                      fontSize: 12
+                    },
+                    borders: {
+                      top: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+                      bottom: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+                      left: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+                      right: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } }
+                    }
+                  },
+                },
+                fields: 'userEnteredFormat',
+              },
+            },
           ],
         },
       };
 
       const response = await this.sheets.spreadsheets.batchUpdate(request);
-      console.log(`Successfully merged cells from row ${startRowIndex} to ${endRowIndex - 1}, column ${startColumnIndex} to ${endColumnIndex - 1}`);
+      console.log(`Successfully merged cells from row ${startRowIndex} to ${endRowIndex - 1}, column ${startColumnIndex} to ${endColumnIndex - 1} with complete formatting (center, bold, borders)`);
       return response.data;
     } catch (error) {
       console.error("Error merging cells:", error);
@@ -604,6 +632,44 @@ class GoogleSheetsService {
         throw new Error(`Invalid format request: ${error.message}`);
       }
       throw new Error(`Failed to format cells: ${error.message}`);
+    }
+  }
+
+  // Auto-fit columns to content
+  async autoFitColumns(spreadsheetId, sheetId, startColumnIndex, endColumnIndex) {
+    try {
+      await this.initAuth();
+      
+      const request = {
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              autoResizeDimensions: {
+                dimensions: {
+                  sheetId: parseInt(sheetId),
+                  dimension: 'COLUMNS',
+                  startIndex: startColumnIndex,
+                  endIndex: endColumnIndex,
+                },
+              },
+            },
+          ],
+        },
+      };
+
+      const response = await this.sheets.spreadsheets.batchUpdate(request);
+      console.log(`Successfully auto-fitted columns from ${startColumnIndex} to ${endColumnIndex - 1}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error auto-fitting columns:", error);
+      if (error.code === 403) {
+        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+      }
+      if (error.code === 400) {
+        throw new Error(`Invalid auto-fit request: ${error.message}`);
+      }
+      throw new Error(`Failed to auto-fit columns: ${error.message}`);
     }
   }
 }

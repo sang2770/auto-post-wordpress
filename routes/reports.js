@@ -394,31 +394,69 @@ async function writeReportToSheet(reportUrl, reportData, targetDate) {
       console.log(
         `Successfully merged date header cells from column ${nextColumnStart} to ${getColumnLetter(
           endColIndex - 1
-        )}`
+        )} with complete formatting`
       );
 
-      // Apply center alignment and bold formatting to the merged date header
-      const centerFormat = {
-        horizontalAlignment: "CENTER",
-        verticalAlignment: "MIDDLE",
+      // Apply borders to all data cells (headers + data rows)
+      const borderFormat = {
+        borders: {
+          top: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+          bottom: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+          left: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+          right: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } }
+        }
+      };
+
+      // Apply borders to data columns (from row 2 onwards, all data rows)
+      await googleSheetsService.formatCells(
+        spreadsheetId,
+        gid || 0,
+        1, // Start from row 2 (headers)
+        dataToWrite.length, // End at the last data row
+        startColIndex, // Start column index
+        endColIndex, // End column index (exclusive)
+        borderFormat
+      );
+
+      // Apply center alignment to header row (row 2)
+      const headerFormat = {
+        horizontalAlignment: 'CENTER',
+        verticalAlignment: 'MIDDLE',
         textFormat: {
           bold: true,
-          fontSize: 12,
+          fontSize: 11
         },
+        borders: {
+          top: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+          bottom: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+          left: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
+          right: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } }
+        }
       };
 
       await googleSheetsService.formatCells(
         spreadsheetId,
         gid || 0,
-        0, // Start row index (row 1 = index 0)
-        1, // End row index (row 1 = index 1, exclusive)
+        1, // Row 2 (headers)
+        2, // End at row 2 (exclusive)
         startColIndex, // Start column index
         endColIndex, // End column index (exclusive)
-        centerFormat
+        headerFormat
       );
-      console.log(
-        `Successfully applied center alignment and bold formatting to date header`
-      );
+
+      // Also apply borders to store names column (column A) if this is the first report
+      if (nextColumnStart === 'B') {
+        await googleSheetsService.formatCells(
+          spreadsheetId,
+          gid || 0,
+          1, // Start from row 2 (headers)
+          dataToWrite.length, // End at the last data row
+          0, // Column A (index 0)
+          1, // Column A only (exclusive end)
+          borderFormat
+        );
+      }
+      console.log(`Successfully applied borders and center formatting to all columns`);
     } catch (mergeError) {
       console.warn(
         `Warning: Could not merge cells for date header: ${mergeError.message}`
