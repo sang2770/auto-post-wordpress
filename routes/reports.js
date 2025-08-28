@@ -493,3 +493,5 @@ async function writeReportToSheet(reportUrl, reportData, targetDate) {
 }
 
 module.exports = router;
+module.exports.writeReportToSheet = writeReportToSheet;
+module.exports.processDataByStore = processDataByStore;

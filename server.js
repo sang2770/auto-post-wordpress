@@ -629,14 +629,62 @@ async function checkForChanges() {
     }
 }
 
+// Background job to generate daily reports
+async function generateDailyReport() {
+    try {
+        console.log('Generating daily report...');
+
+        const config = await storageService.getConfig();
+        
+        // Check if report configuration exists
+        if (!config?.dataUrl || !config?.reportUrl) {
+            console.log('No report configuration found, skipping daily report generation');
+            return;
+        }
+
+        // Get current date in UTC+7 timezone
+        const utcNow = new Date();
+        const utcPlus7Time = new Date(utcNow.getTime() + (7 * 60 * 60 * 1000));
+        const targetDate = utcPlus7Time.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+        console.log(`Generating daily report for date: ${targetDate} (UTC+7)`);
+
+        // Fetch data from the data sheet
+        const rawData = await googleSheetsService.fetchReportData(config.dataUrl);
+
+        // Import the functions from reports route
+        const { processDataByStore, writeReportToSheet } = require('./routes/reports');
+        
+        // Process data by store
+        const reportData = processDataByStore(rawData);
+
+        // Write report to the report sheet
+        await writeReportToSheet(config.reportUrl, reportData, targetDate);
+
+        console.log(`Daily report generated successfully for ${targetDate}`);
+        console.log(`Stores processed: ${Object.keys(reportData).length}`);
+        console.log(`Total records processed from sheet: ${rawData.length}`);
+
+    } catch (error) {
+        console.error('Error generating daily report:', error);
+    }
+}
+
 // Schedule the job to run every 5 minutes
 const pollingInterval = process.env.POLLING_INTERVAL || 5;
 cron.schedule(`*/${pollingInterval} * * * *`, checkForChanges);
+
+// Schedule daily report generation at end of day (11:59 PM UTC+7)
+// This converts to 4:59 PM UTC (11:59 PM UTC+7 - 7 hours)
+cron.schedule('59 16 * * *', generateDailyReport, {
+    timezone: 'UTC'
+});
 
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Polling interval: ${pollingInterval} minutes`);
+    console.log('Daily report scheduled for 11:59 PM UTC+7 (end of day)');
 });
 
 // Graceful shutdown
