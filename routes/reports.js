@@ -225,9 +225,9 @@ function processDataByStore(rawData) {
     storeData[storeName].totalClicks += clicks;
     storeData[storeName].totalCommission += commission;
     storeData[storeName].totalBenefit += benefit;
-    });
-    
-    Object.keys(storeData).forEach((storeName) => {
+  });
+
+  Object.keys(storeData).forEach((storeName) => {
     const s = storeData[storeName];
     if (
       s.totalSpend === 0 &&
@@ -237,9 +237,9 @@ function processDataByStore(rawData) {
     ) {
       delete storeData[storeName];
     }
-    });
+  });
 
-    return storeData;
+  return storeData;
 }
 
 // Write report data to Google Sheets
@@ -262,17 +262,23 @@ async function writeReportToSheet(reportUrl, reportData, targetDate) {
 
     console.log("Report data structure:");
     console.log("Date:", targetDate);
-    console.log("Stores:", Object.keys(reportData));
+    console.log("Stores:", Object.keys(reportData).length);
 
     // Get previous report data for comparison
     const previousReport = await storageService.getLastReport();
     const previousData = previousReport?.data || {};
 
     // Read existing data to find the next available column set
-    const existingData = await googleSheetsService.readSheetValues(
-      spreadsheetId,
-      `${sheetName}!A:CV`
-    ); // Read up to column CV (100 columns)
+    let existingData = [];
+    try {
+      existingData = await googleSheetsService.readSheetValues(
+        spreadsheetId,
+        `${sheetName}!A:CV`
+      ); // Read up to column CV (100 columns)
+    } catch (readError) {
+      console.warn(`Warning: Could not read existing data, starting fresh: ${readError.message}`);
+      existingData = [];
+    }
     // Get store existed from A3 -> bottom
     const existingStores = existingData
       .slice(2)
@@ -312,6 +318,26 @@ async function writeReportToSheet(reportUrl, reportData, targetDate) {
         (store) => !existingStores.includes(store)
       ),
     ];
+
+    // Calculate required dimensions
+    const requiredRows = Math.max(stores.length + 2, 10); // +2 for header rows, minimum 10
+    const requiredColumns = getColumnIndex(nextColumnStart) + 5; // 5 columns for this report
+
+    console.log(`Required dimensions: ${requiredRows} rows, ${requiredColumns} columns`);
+
+    // Ensure sheet has enough space
+    try {
+      await googleSheetsService.ensureSheetSize(
+        spreadsheetId,
+        gid || 0,
+        requiredRows,
+        requiredColumns
+      );
+      console.log('Sheet size verified/expanded successfully');
+    } catch (sizeError) {
+      console.warn(`Warning: Could not ensure sheet size: ${sizeError.message}`);
+      // Continue execution but log the warning
+    }
     // Prepare the data to write
     const dataToWrite = [];
 
@@ -468,6 +494,19 @@ async function writeReportToSheet(reportUrl, reportData, targetDate) {
         );
       }
       console.log(`Successfully applied borders and center formatting to all columns`);
+
+      // Auto-fit columns to content
+      try {
+        await googleSheetsService.autoFitColumns(
+          spreadsheetId,
+          gid || 0,
+          0, // Start from column A
+          endColIndex // End at the last column used
+        );
+        console.log(`Successfully auto-fitted columns A to ${getColumnLetter(endColIndex - 1)}`);
+      } catch (autoFitError) {
+        console.warn(`Warning: Could not auto-fit columns: ${autoFitError.message}`);
+      }
     } catch (mergeError) {
       console.warn(
         `Warning: Could not merge cells for date header: ${mergeError.message}`

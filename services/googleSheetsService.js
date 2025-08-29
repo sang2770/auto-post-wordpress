@@ -4,7 +4,7 @@ const path = require('path');
 
 class GoogleSheetsService {
   constructor() {
-    // No API key needed anymore - using public CSV export
+    // Using authenticated Google Sheets API for private sheets
     this.auth = null;
     this.sheets = null;
   }
@@ -111,22 +111,71 @@ class GoogleSheetsService {
     return match ? match[1] : "0";
   }
 
-  // Convert full Google Sheets URL to CSV export URL
-  getCSVUrlFromFullUrl(url) {
-    const sheetId = this.extractSheetId(url);
-    const gid = this.extractGid(url);
+  // Convert full Google Sheets URL to authenticated data fetch (for private sheets)
+  async getCSVUrlFromFullUrl(url) {
+    try {
+      await this.initAuth();
 
-    if (!sheetId) {
-      throw new Error("Invalid Google Sheets URL");
-    }
+      const sheetId = this.extractSheetId(url);
+      const gid = this.extractGid(url);
 
-    // Check if this is a pubhtml format sheet ID (starts with 2PACX-)
-    if (sheetId.startsWith("2PACX-")) {
-      return `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?output=csv&gid=${gid}`;
-    } else {
-      // Regular format
-      return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      if (!sheetId) {
+        throw new Error("Invalid Google Sheets URL");
+      }
+
+      // For private sheets, we need to use the Sheets API instead of CSV export
+      // First, get the sheet name from the GID
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+      });
+
+      // Find the sheet with the matching GID
+      let sheetName = 'Sheet1'; // default
+      if (spreadsheet.data.sheets) {
+        const targetSheet = spreadsheet.data.sheets.find(sheet =>
+          sheet.properties.sheetId.toString() === gid
+        );
+        if (targetSheet) {
+          sheetName = targetSheet.properties.title;
+        }
+      }
+
+      // Fetch the data using Sheets API
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: sheetName,
+      });
+
+      // Convert the values to CSV format
+      const values = response.data.values || [];
+      const csvData = this.convertToCsv(values);
+
+      return csvData;
+    } catch (error) {
+      console.error('Error fetching private sheet data:', error);
+      if (error.code === 403) {
+        throw new Error(`Access denied to private spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has viewer or editor access to the sheet.`);
+      }
+      if (error.code === 404) {
+        throw new Error(`Private spreadsheet not found. Please check the URL and ensure the sheet exists.`);
+      }
+      throw new Error(`Failed to fetch private sheet data: ${error.message}`);
     }
+  }
+
+  // Helper method to convert values array to CSV format
+  convertToCsv(values) {
+    return values.map(row => {
+      return row.map(cell => {
+        // Handle cells with commas, quotes, or newlines
+        const cellStr = (cell || '').toString();
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n') || cellStr.includes('\r')) {
+          // Escape quotes by doubling them and wrap in quotes
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(',');
+    }).join('\n');
   }
 
   // Convert Google Sheets URL to CSV export URL
@@ -391,52 +440,28 @@ class GoogleSheetsService {
 
   async fetchSingleSheetFromUrl(url) {
     try {
-      const csvUrl = this.getCSVUrlFromFullUrl(url);
-      console.log(`Fetching data from CSV URL: ${csvUrl}`);
+      console.log(`Fetching data from private sheet URL: ${url}`);
 
-      const response = await axios.get(csvUrl, {
-        timeout: 10000,
-        headers: {
-          "User-Agent": "Auto-Store-Creator/1.0",
-        },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // Parse CSV data
-      const csvData = response.data;
+      // Use the authenticated method instead of direct CSV fetch
+      const csvData = await this.getCSVUrlFromFullUrl(url);
 
       const rows = this.parseCSV(csvData);
 
-      console.log(`Successfully fetched ${rows.length} rows from URL`);
+      console.log(`Successfully fetched ${rows.length} rows from private sheet URL`);
       return rows;
     } catch (error) {
-      console.error(`Error fetching sheet from URL: ${url}`, error);
-      throw new Error(`Failed to fetch data from URL: ${error.message}`);
+      console.error(`Error fetching private sheet from URL: ${url}`, error);
+      throw new Error(`Failed to fetch data from private sheet URL: ${error.message}`);
     }
   }
 
   // Fetch report data from a Google Sheets URL
   async fetchReportData(url) {
     try {
-      const csvUrl = this.getCSVUrlFromFullUrl(url);
-      console.log(`Fetching report data from CSV URL: ${csvUrl}`);
+      console.log(`Fetching report data from private sheet URL: ${url}`);
 
-      const response = await axios.get(csvUrl, {
-        timeout: 15000,
-        headers: {
-          "User-Agent": "Auto-Store-Creator/1.0",
-        },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // Parse CSV data
-      const csvData = response.data;
+      // Use the authenticated method instead of direct CSV fetch
+      const csvData = await this.getCSVUrlFromFullUrl(url);
       const rows = this.parseCSV(csvData);
 
       console.log(`Successfully fetched ${rows.length} rows of report data`);
@@ -670,6 +695,116 @@ class GoogleSheetsService {
         throw new Error(`Invalid auto-fit request: ${error.message}`);
       }
       throw new Error(`Failed to auto-fit columns: ${error.message}`);
+    }
+  }
+
+  // Check sheet dimensions and expand if needed
+  async ensureSheetSize(spreadsheetId, sheetId, minRows, minColumns) {
+    try {
+      await this.initAuth();
+
+      // Get current sheet properties
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties',
+      });
+
+      const sheet = response.data.sheets.find(s => s.properties.sheetId == sheetId);
+      if (!sheet) {
+        throw new Error(`Sheet with ID ${sheetId} not found`);
+      }
+
+      const currentRows = sheet.properties.gridProperties?.rowCount || 1000;
+      const currentColumns = sheet.properties.gridProperties?.columnCount || 26;
+
+      console.log(`Current sheet size: ${currentRows} rows, ${currentColumns} columns`);
+      console.log(`Required size: ${minRows} rows, ${minColumns} columns`);
+
+      // Check if we need to expand
+      const needsRowExpansion = minRows > currentRows;
+      const needsColumnExpansion = minColumns > currentColumns;
+      const needsExpansion = needsRowExpansion || needsColumnExpansion;
+
+      if (needsExpansion) {
+        const newRows = Math.max(currentRows, minRows) + 10; // Add buffer
+        const newColumns = Math.max(currentColumns, minColumns) + 10; // Add buffer
+
+        console.log(`Expanding sheet to: ${newRows} rows, ${newColumns} columns`);
+
+        const updateRequest = {
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              {
+                updateSheetProperties: {
+                  properties: {
+                    sheetId: parseInt(sheetId),
+                    gridProperties: {
+                      rowCount: newRows,
+                      columnCount: newColumns,
+                    },
+                  },
+                  fields: 'gridProperties.rowCount,gridProperties.columnCount',
+                },
+              },
+            ],
+          },
+        };
+
+        await this.sheets.spreadsheets.batchUpdate(updateRequest);
+        console.log(`Successfully expanded sheet to ${newRows} rows and ${newColumns} columns`);
+
+        return {
+          expanded: true,
+          currentRows: newRows,
+          currentColumns: newColumns,
+          expandedRows: needsRowExpansion,
+          expandedColumns: needsColumnExpansion,
+        };
+      } else {
+        console.log('Sheet size is sufficient, no expansion needed');
+        return {
+          expanded: false,
+          currentRows,
+          currentColumns,
+          expandedRows: false,
+          expandedColumns: false,
+        };
+      }
+    } catch (error) {
+      console.error("Error ensuring sheet size:", error);
+      if (error.code === 403) {
+        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+      }
+      if (error.code === 400) {
+        throw new Error(`Invalid sheet size request: ${error.message}`);
+      }
+      throw new Error(`Failed to ensure sheet size: ${error.message}`);
+    }
+  }
+
+  // Get sheet dimensions
+  async getSheetDimensions(spreadsheetId, sheetId) {
+    try {
+      await this.initAuth();
+
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties',
+      });
+
+      const sheet = response.data.sheets.find(s => s.properties.sheetId == sheetId);
+      if (!sheet) {
+        throw new Error(`Sheet with ID ${sheetId} not found`);
+      }
+
+      return {
+        rows: sheet.properties.gridProperties?.rowCount || 1000,
+        columns: sheet.properties.gridProperties?.columnCount || 26,
+      };
+    } catch (error) {
+      console.error("Error getting sheet dimensions:", error);
+      throw new Error(`Failed to get sheet dimensions: ${error.message}`);
     }
   }
 }
