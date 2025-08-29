@@ -221,14 +221,25 @@ function processDataByStore(rawData) {
       clicks,
       commission,
     });
-
     storeData[storeName].totalSpend += spend;
     storeData[storeName].totalClicks += clicks;
     storeData[storeName].totalCommission += commission;
     storeData[storeName].totalBenefit += benefit;
-  });
+    });
+    
+    Object.keys(storeData).forEach((storeName) => {
+    const s = storeData[storeName];
+    if (
+      s.totalSpend === 0 &&
+      s.totalClicks === 0 &&
+      s.totalCommission === 0 &&
+      s.totalBenefit === 0
+    ) {
+      delete storeData[storeName];
+    }
+    });
 
-  return storeData;
+    return storeData;
 }
 
 // Write report data to Google Sheets

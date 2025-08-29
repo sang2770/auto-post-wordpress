@@ -16,7 +16,7 @@ class GoogleSheetsService {
     }
 
     try {
-      const keyFilePath = path.join(__dirname, '..', 'data', 'ggsheet-469714-4a42f804ce04.json');
+      const keyFilePath = path.join(__dirname, '..', 'data', 'keys.json');
 
       this.auth = new google.auth.GoogleAuth({
         keyFile: keyFilePath,
