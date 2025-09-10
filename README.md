@@ -9,6 +9,7 @@ This application automatically creates stores on your WordPress website using da
 - Automatic polling every 5 minutes for changes
 - WordPress API integration
 - Support for store fields: links, name, guide, about, Q&A
+- **NEW: Support for multiple data and report URL pairs**
 
 ## Setup
 
@@ -35,6 +36,26 @@ PORT=3000
    - Check "Automatically republish when changes are made"
    - Click "Publish"
    - Make sure sharing is set to "Anyone with the link can view"
+
+## Upgrading from Previous Version
+
+If you're upgrading from a version that only supported a single pair of data and report URLs:
+
+1. Run the migration script to update your configuration:
+
+```bash
+npm run migrate
+```
+
+2. After migration, you can add multiple URL pairs through the web interface.
+
+## Report Generation
+
+The application now supports generating reports from multiple data sources:
+
+1. Configure multiple pairs of data and report URLs in the Reports tab
+2. Each pair consists of a source data URL and a destination report URL
+3. When generating reports, data will be processed for each URL pair
 
 4. Run the application:
 

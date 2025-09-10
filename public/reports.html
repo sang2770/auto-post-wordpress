@@ -33,29 +33,43 @@
           <!-- Report Configuration -->
           <div class="form-group">
             <h3><i class="fas fa-cog"></i> Cấu Hình Báo Cáo</h3>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="data-url">URL Nguồn Dữ Liệu:</label>
-                <input
-                  type="url"
-                  id="data-url"
-                  placeholder="https://docs.google.com/spreadsheets/d/1ce70KkL6OBtU26uXODVLBz7BIkxMIDnXwWtiLza2eRY/edit?gid=0#gid=0"
-                  required
-                />
-                <small>URL để lấy dữ liệu cho báo cáo (cần có các cột: cửa hàng, ngày, chi phí chạy, click, hoa hồng)</small>
-              </div>
-              <div class="form-group">
-                <label for="report-url">URL Sheet Báo Cáo:</label>
-                <input
-                  type="url"
-                  id="report-url"
-                  placeholder="https://docs.google.com/spreadsheets/d/YOUR_REPORT_SHEET_ID/edit?gid=0#gid=0"
-                  required
-                />
-                <small>URL nơi báo cáo sẽ được ghi (sheet đích)</small>
+            <div id="url-pairs-container">
+              <div class="url-pair">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="data-url-0">URL Nguồn Dữ Liệu:</label>
+                    <input
+                      type="url"
+                      id="data-url-0"
+                      class="data-url"
+                      placeholder="https://docs.google.com/spreadsheets/d/1ce70KkL6OBtU26uXODVLBz7BIkxMIDnXwWtiLza2eRY/edit?gid=0#gid=0"
+                      required
+                    />
+                    <small>URL để lấy dữ liệu cho báo cáo (cần có các cột: cửa hàng, ngày, chi phí chạy, click, hoa hồng)</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="report-url-0">URL Sheet Báo Cáo:</label>
+                    <input
+                      type="url"
+                      id="report-url-0"
+                      class="report-url"
+                      placeholder="https://docs.google.com/spreadsheets/d/YOUR_REPORT_SHEET_ID/edit?gid=0#gid=0"
+                      required
+                    />
+                    <small>URL nơi báo cáo sẽ được ghi (sheet đích)</small>
+                  </div>
+                  <div class="url-pair-actions">
+                    <button type="button" class="btn btn-icon remove-url-pair" title="Xóa cặp URL này">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="button-group">
+              <button id="add-url-pair" class="btn btn-outline-secondary">
+                <i class="fas fa-plus"></i> Thêm Cặp URL
+              </button>
               <button id="save-report-config" class="btn btn-primary">
                 <i class="fas fa-save"></i> Lưu Cấu Hình Báo Cáo
               </button>

@@ -1,8 +1,23 @@
 {
-  "storeSheetsUrl": "https://docs.google.com/spreadsheets/d/1ahBB5zt7wtDPzAicHufi0bnCYW1ZiPqRJcYZXjrY-AM/edit?gid=111352614#gid=111352614",
-  "storeDetailSheetsUrl": "https://docs.google.com/spreadsheets/d/1ahBB5zt7wtDPzAicHufi0bnCYW1ZiPqRJcYZXjrY-AM/edit?gid=1127959731#gid=1127959731",
-  "storeSheetId": "1ahBB5zt7wtDPzAicHufi0bnCYW1ZiPqRJcYZXjrY-AM",
-  "storeDetailSheetId": "1ahBB5zt7wtDPzAicHufi0bnCYW1ZiPqRJcYZXjrY-AM",
-  "configuredAt": "2025-08-28T13:44:06.828Z",
-  "lastUpdated": "2025-08-28T13:44:06.828Z"
+  "dataUrl": "https://docs.google.com/spreadsheets/d/1wFeyoo8V2g-9weOcxG3MmXhrlTIYx7kPRIhAB5wPTpo/edit?gid=0#gid=0",
+  "reportUrl": "https://docs.google.com/spreadsheets/d/1wFeyoo8V2g-9weOcxG3MmXhrlTIYx7kPRIhAB5wPTpo/edit?gid=71232144#gid=71232144",
+  "dataSheetId": "1wFeyoo8V2g-9weOcxG3MmXhrlTIYx7kPRIhAB5wPTpo",
+  "reportSheetId": "1wFeyoo8V2g-9weOcxG3MmXhrlTIYx7kPRIhAB5wPTpo",
+  "reportConfiguredAt": "2025-09-10T04:50:16.333Z",
+  "lastUpdated": "2025-09-10T04:50:16.333Z",
+  "urlPairs": [
+    {
+      "dataUrl": "https://docs.google.com/spreadsheets/d/1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ/edit?gid=0#gid=0",
+      "reportUrl": "https://docs.google.com/spreadsheets/d/1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ/edit?gid=797561903#gid=797561903",
+      "dataSheetId": "1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ",
+      "reportSheetId": "1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ"
+    },
+    {
+      "dataUrl": "https://docs.google.com/spreadsheets/d/1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ/edit?gid=176762769#gid=176762769",
+      "reportUrl": "https://docs.google.com/spreadsheets/d/1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ/edit?gid=584218091#gid=584218091",
+      "dataSheetId": "1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ",
+      "reportSheetId": "1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ"
+    }
+  ],
+  "lastMigrated": "2025-09-10T04:07:14.819Z"
 }

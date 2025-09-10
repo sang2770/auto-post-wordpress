@@ -1,5 +1,6 @@
 class ReportsManager {
     constructor() {
+        this.urlPairCount = 1;
         this.init();
     }
 
@@ -28,21 +29,108 @@ class ReportsManager {
         document.getElementById('view-stores-list').addEventListener('click', () => {
             this.viewStoresList();
         });
+        
+        // URL pair management
+        document.getElementById('add-url-pair').addEventListener('click', () => {
+            this.addUrlPair();
+        });
+        
+        // Delegate event for dynamically added remove buttons
+        document.getElementById('url-pairs-container').addEventListener('click', (e) => {
+            if (e.target.closest('.remove-url-pair')) {
+                const urlPair = e.target.closest('.url-pair');
+                if (urlPair) {
+                    this.removeUrlPair(urlPair);
+                }
+            }
+        });
+    }
+    
+    // URL pair management methods
+    addUrlPair() {
+        const container = document.getElementById('url-pairs-container');
+        const newIndex = this.urlPairCount++;
+        
+        const urlPairDiv = document.createElement('div');
+        urlPairDiv.className = 'url-pair';
+        urlPairDiv.innerHTML = `
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="data-url-${newIndex}">URL Nguồn Dữ Liệu:</label>
+                    <input
+                        type="url"
+                        id="data-url-${newIndex}"
+                        class="data-url"
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        required
+                    />
+                    <small>URL để lấy dữ liệu cho báo cáo</small>
+                </div>
+                <div class="form-group">
+                    <label for="report-url-${newIndex}">URL Sheet Báo Cáo:</label>
+                    <input
+                        type="url"
+                        id="report-url-${newIndex}"
+                        class="report-url"
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        required
+                    />
+                    <small>URL nơi báo cáo sẽ được ghi</small>
+                </div>
+                <div class="url-pair-actions">
+                    <button type="button" class="btn btn-icon remove-url-pair" title="Xóa cặp URL này">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(urlPairDiv);
+    }
+    
+    removeUrlPair(urlPairElement) {
+        // Don't remove if it's the last one
+        const urlPairs = document.querySelectorAll('.url-pair');
+        if (urlPairs.length <= 1) {
+            this.showMessage('Phải có ít nhất một cặp URL', 'warning');
+            return;
+        }
+        
+        urlPairElement.remove();
+    }
+    
+    // Get all URL pairs from the form
+    getUrlPairs() {
+        const pairs = [];
+        const urlPairs = document.querySelectorAll('.url-pair');
+        
+        urlPairs.forEach((pair, index) => {
+            const dataUrl = pair.querySelector('.data-url').value.trim();
+            const reportUrl = pair.querySelector('.report-url').value.trim();
+            
+            if (dataUrl && reportUrl) {
+                pairs.push({ dataUrl, reportUrl });
+            }
+        });
+        
+        return pairs;
     }
 
     // Report functionality methods
     async saveReportConfig() {
-        const dataUrl = document.getElementById('data-url').value.trim();
-        const reportUrl = document.getElementById('report-url').value.trim();
-
-        if (!dataUrl || !reportUrl) {
-            this.showMessage('Vui lòng nhập cả URL dữ liệu và URL báo cáo', 'error');
+        const urlPairs = this.getUrlPairs();
+        
+        if (urlPairs.length === 0) {
+            this.showMessage('Vui lòng nhập ít nhất một cặp URL', 'error');
             return;
         }
-
-        if (!this.isValidGoogleSheetsUrl(dataUrl) || !this.isValidGoogleSheetsUrl(reportUrl)) {
-            this.showMessage('Vui lòng nhập URL Google Sheets hợp lệ', 'error');
-            return;
+        
+        // Validate all URLs
+        for (const pair of urlPairs) {
+            if (!this.isValidGoogleSheetsUrl(pair.dataUrl) || !this.isValidGoogleSheetsUrl(pair.reportUrl)) {
+                this.showMessage('Vui lòng nhập URL Google Sheets hợp lệ cho tất cả các cặp', 'error');
+                return;
+            }
         }
 
         this.showLoading(true);
@@ -54,17 +142,16 @@ class ReportsManager {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    dataUrl,
-                    reportUrl
+                    urlPairs
                 })
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                this.showMessage('Cấu hình báo cáo đã được lưu thành công!', 'success');
-                this.addLogEntry('Cập nhật cấu hình báo cáo', 'success');
-                this.updateReportStatus('Cấu hình báo cáo đã được lưu');
+                this.showMessage(`Cấu hình báo cáo đã được lưu thành công với ${urlPairs.length} cặp URL!`, 'success');
+                this.addLogEntry(`Cập nhật cấu hình báo cáo (${urlPairs.length} cặp URL)`, 'success');
+                this.updateReportStatus(`Cấu hình báo cáo đã được lưu (${urlPairs.length} cặp URL)`);
             } else {
                 this.showMessage(result.error || 'Không thể lưu cấu hình báo cáo', 'error');
             }
@@ -172,9 +259,40 @@ class ReportsManager {
             const result = await response.json();
 
             if (response.ok && result.configured) {
-                document.getElementById('data-url').value = result.dataUrl || '';
-                document.getElementById('report-url').value = result.reportUrl || '';
-                this.updateReportStatus('Cấu hình báo cáo đã được tải');
+                // Clear existing URL pairs except the first one
+                const container = document.getElementById('url-pairs-container');
+                const urlPairs = container.querySelectorAll('.url-pair');
+                for (let i = 1; i < urlPairs.length; i++) {
+                    urlPairs[i].remove();
+                }
+                
+                // Reset counter
+                this.urlPairCount = 1;
+                
+                if (result.urlPairs && result.urlPairs.length > 0) {
+                    // Set the first pair
+                    const firstPair = result.urlPairs[0];
+                    container.querySelector('.data-url').value = firstPair.dataUrl || '';
+                    container.querySelector('.report-url').value = firstPair.reportUrl || '';
+                    
+                    // Add additional pairs
+                    for (let i = 1; i < result.urlPairs.length; i++) {
+                        this.addUrlPair();
+                        const pair = result.urlPairs[i];
+                        const urlPairElements = container.querySelectorAll('.url-pair');
+                        const lastPairElement = urlPairElements[urlPairElements.length - 1];
+                        
+                        lastPairElement.querySelector('.data-url').value = pair.dataUrl || '';
+                        lastPairElement.querySelector('.report-url').value = pair.reportUrl || '';
+                    }
+                    
+                    this.updateReportStatus(`Cấu hình báo cáo đã được tải (${result.urlPairs.length} cặp URL)`);
+                } else if (result.dataUrl && result.reportUrl) {
+                    // Legacy format - single pair
+                    container.querySelector('.data-url').value = result.dataUrl || '';
+                    container.querySelector('.report-url').value = result.reportUrl || '';
+                    this.updateReportStatus('Cấu hình báo cáo đã được tải');
+                }
             } else {
                 this.updateReportStatus('Chưa cấu hình báo cáo');
             }

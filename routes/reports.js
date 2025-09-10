@@ -13,9 +13,8 @@ router.get("/config", async (req, res) => {
 
     res.json({
       success: true,
-      dataUrl: config?.dataUrl || "",
-      reportUrl: config?.reportUrl || "",
-      configured: !!(config?.dataUrl && config?.reportUrl),
+      urlPairs: config?.urlPairs || [],
+      configured: !!(config?.urlPairs && config?.urlPairs.length > 0),
     });
   } catch (error) {
     console.error("Error getting report config:", error);
@@ -26,30 +25,46 @@ router.get("/config", async (req, res) => {
 // Configure report URLs
 router.post("/config", async (req, res) => {
   try {
-    const { dataUrl, reportUrl } = req.body;
+    const { urlPairs } = req.body;
 
-    if (!dataUrl || !reportUrl) {
+    if (!urlPairs || !Array.isArray(urlPairs) || urlPairs.length === 0) {
       return res
         .status(400)
-        .json({ error: "Both data URL and report URL are required" });
+        .json({ error: "At least one pair of data URL and report URL is required" });
     }
 
-    // Validate URLs can extract sheet IDs
-    const dataSheetId = googleSheetsService.extractSheetId(dataUrl);
-    const reportSheetId = googleSheetsService.extractSheetId(reportUrl);
+    // Validate all URL pairs
+    const validatedPairs = [];
+    for (const pair of urlPairs) {
+      const { dataUrl, reportUrl } = pair;
+      
+      if (!dataUrl || !reportUrl) {
+        return res
+          .status(400)
+          .json({ error: "Both data URL and report URL are required for each pair" });
+      }
 
-    if (!dataSheetId || !reportSheetId) {
-      return res.status(400).json({ error: "Invalid Google Sheets URLs" });
+      // Validate URLs can extract sheet IDs
+      const dataSheetId = googleSheetsService.extractSheetId(dataUrl);
+      const reportSheetId = googleSheetsService.extractSheetId(reportUrl);
+
+      if (!dataSheetId || !reportSheetId) {
+        return res.status(400).json({ error: "Invalid Google Sheets URLs" });
+      }
+
+      validatedPairs.push({
+        dataUrl,
+        reportUrl,
+        dataSheetId,
+        reportSheetId
+      });
     }
 
     // Get existing config and update with report URLs
     const existingConfig = (await storageService.getConfig()) || {};
     const updatedConfig = {
       ...existingConfig,
-      dataUrl,
-      reportUrl,
-      dataSheetId,
-      reportSheetId,
+      urlPairs: validatedPairs,
       reportConfiguredAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
     };
@@ -58,7 +73,7 @@ router.post("/config", async (req, res) => {
 
     console.log(
       `Report configuration saved: ${JSON.stringify(
-        { dataUrl, reportUrl },
+        { urlPairsCount: validatedPairs.length },
         null,
         2
       )}`
@@ -67,8 +82,7 @@ router.post("/config", async (req, res) => {
     res.json({
       success: true,
       message: "Report configuration saved successfully",
-      dataSheetId,
-      reportSheetId,
+      urlPairsCount: validatedPairs.length,
     });
   } catch (error) {
     console.error("Report configuration error:", error);
@@ -80,17 +94,63 @@ router.post("/config", async (req, res) => {
 router.post("/test-data-connection", async (req, res) => {
   try {
     const config = await storageService.getConfig();
-    if (!config?.dataUrl) {
-      return res.status(400).json({ error: "No data URL configured" });
+    if (!config?.urlPairs || config.urlPairs.length === 0) {
+      return res.status(400).json({ error: "No data URLs configured" });
     }
 
-    const data = await googleSheetsService.fetchReportData(config.dataUrl);
+    // Test all data URLs
+    const results = [];
+    let totalRows = 0;
+    
+    for (const [index, pair] of config.urlPairs.entries()) {
+      console.log(`Testing data connection for pair ${index + 1}/${config.urlPairs.length}`);
+      
+      try {
+        const data = await googleSheetsService.fetchReportData(pair.dataUrl);
+        
+        results.push({
+          pairIndex: index,
+          dataUrl: pair.dataUrl,
+          reportUrl: pair.reportUrl,
+          success: true,
+          totalRows: data.length,
+          columns: data.length > 0 ? Object.keys(data[0]) : [],
+          sampleData: data.slice(0, 5), // Return first 5 rows as sample
+        });
+        
+        totalRows += data.length;
+      } catch (pairError) {
+        console.error(`Error testing pair ${index + 1}:`, pairError);
+        results.push({
+          pairIndex: index,
+          dataUrl: pair.dataUrl,
+          reportUrl: pair.reportUrl,
+          success: false,
+          error: pairError.message
+        });
+      }
+    }
+
+    // Check if at least one connection was successful
+    const anySuccess = results.some(result => result.success);
+    
+    if (!anySuccess) {
+      return res.status(500).json({ 
+        error: "Failed to connect to any data sources", 
+        results 
+      });
+    }
 
     res.json({
       success: true,
-      totalRows: data.length,
-      sampleData: data.slice(0, 5), // Return first 5 rows as sample
-      columns: data.length > 0 ? Object.keys(data[0]) : [],
+      totalPairs: config.urlPairs.length,
+      successfulPairs: results.filter(r => r.success).length,
+      failedPairs: results.filter(r => !r.success).length,
+      totalRows,
+      results,
+      // Include sample data from the first successful connection
+      sampleData: results.find(r => r.success && r.sampleData?.length > 0)?.sampleData || [],
+      columns: results.find(r => r.success && r.columns?.length > 0)?.columns || [],
     });
   } catch (error) {
     console.error("Test data connection error:", error);
@@ -105,7 +165,7 @@ router.post("/generate", async (req, res) => {
     const targetDate = date || new Date().toISOString().split("T")[0]; // Today in YYYY-MM-DD format
 
     const config = await storageService.getConfig();
-    if (!config?.dataUrl || !config?.reportUrl) {
+    if (!config?.urlPairs || config.urlPairs.length === 0) {
       return res.status(400).json({
         error:
           "Report URLs not configured. Please configure data and report URLs first.",
@@ -114,24 +174,40 @@ router.post("/generate", async (req, res) => {
 
     console.log(`Generating report for date: ${targetDate}`);
 
-    // Fetch data from the data sheet
-    const rawData = await googleSheetsService.fetchReportData(config.dataUrl);
+    // Process each URL pair
+    const results = [];
+    for (const [index, pair] of config.urlPairs.entries()) {
+      console.log(`Processing URL pair ${index + 1}/${config.urlPairs.length}`);
+      
+      // Fetch data from the data sheet
+      const rawData = await googleSheetsService.fetchReportData(pair.dataUrl);
 
-    // Filter data by date and process by store
-    const reportData = processDataByStore(rawData, targetDate);
+      // Filter data by date and process by store
+      const reportData = processDataByStore(rawData, targetDate);
 
-    // Write report to the report sheet
-    await writeReportToSheet(config.reportUrl, reportData, targetDate);
+      // Write report to the report sheet
+      const result = await writeReportToSheet(pair.reportUrl, reportData, targetDate);
+      
+      results.push({
+        pairIndex: index,
+        dataUrl: pair.dataUrl,
+        reportUrl: pair.reportUrl,
+        storesProcessed: Object.keys(reportData).length,
+        totalRecords: Object.values(reportData).reduce(
+          (sum, store) => sum + store.records.length,
+          0
+        ),
+        ...result
+      });
+    }
 
     res.json({
       success: true,
       message: `Report generated successfully for ${targetDate}`,
       date: targetDate,
-      storesProcessed: Object.keys(reportData).length,
-      totalRecords: Object.values(reportData).reduce(
-        (sum, store) => sum + store.records.length,
-        0
-      ),
+      results,
+      totalPairsProcessed: results.length,
+      totalStoresProcessed: results.reduce((sum, r) => sum + r.storesProcessed, 0),
     });
   } catch (error) {
     console.error("Error generating report:", error);
@@ -143,11 +219,13 @@ router.post("/generate", async (req, res) => {
 router.get("/stores", async (req, res) => {
   try {
     const config = await storageService.getConfig();
-    if (!config?.dataUrl) {
-      return res.status(400).json({ error: "No data URL configured" });
+    if (!config?.urlPairs || config.urlPairs.length === 0) {
+      return res.status(400).json({ error: "No data URLs configured" });
     }
 
-    const data = await googleSheetsService.fetchReportData(config.dataUrl);
+    // Get stores from the first data URL
+    const firstPair = config.urlPairs[0];
+    const data = await googleSheetsService.fetchReportData(firstPair.dataUrl);
     const stores = [...new Set(data.map((row) => row[3]).filter(Boolean))];
 
     res.json({
@@ -194,7 +272,7 @@ function getColumnLetter(columnIndex) {
   return result;
 }
 // Process data by store for a specific date
-function processDataByStore(rawData) {
+function processDataByStore(rawData, targetDate) {
   const storeData = {};
   rawData.forEach((row, index) => {
     // Get store name (try different possible column names)
