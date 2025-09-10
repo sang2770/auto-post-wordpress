@@ -483,7 +483,7 @@ body {
 /* Form row styles for side-by-side inputs */
 .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 20px;
     gap: 15px;
     margin-bottom: 15px;
 }
@@ -592,7 +592,6 @@ body {
 .url-pair-actions {
     display: flex;
     align-items: center;
-    margin-top: 28px; /* Align with inputs */
 }
 
 .btn-icon {

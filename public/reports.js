@@ -119,6 +119,7 @@ class ReportsManager {
     // Report functionality methods
     async saveReportConfig() {
         const urlPairs = this.getUrlPairs();
+        const summaryReportUrl = document.getElementById('summary-report-url').value.trim();
         
         if (urlPairs.length === 0) {
             this.showMessage('Vui lòng nhập ít nhất một cặp URL', 'error');
@@ -133,6 +134,12 @@ class ReportsManager {
             }
         }
 
+        // Validate summary report URL if provided
+        if (summaryReportUrl && !this.isValidGoogleSheetsUrl(summaryReportUrl)) {
+            this.showMessage('Vui lòng nhập URL Google Sheets hợp lệ cho báo cáo tổng hợp', 'error');
+            return;
+        }
+
         this.showLoading(true);
 
         try {
@@ -142,16 +149,18 @@ class ReportsManager {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    urlPairs
+                    urlPairs,
+                    summaryReportUrl: summaryReportUrl || null
                 })
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                this.showMessage(`Cấu hình báo cáo đã được lưu thành công với ${urlPairs.length} cặp URL!`, 'success');
-                this.addLogEntry(`Cập nhật cấu hình báo cáo (${urlPairs.length} cặp URL)`, 'success');
-                this.updateReportStatus(`Cấu hình báo cáo đã được lưu (${urlPairs.length} cặp URL)`);
+                const summaryText = result.hasSummaryReport ? ' (có báo cáo tổng hợp)' : '';
+                this.showMessage(`Cấu hình báo cáo đã được lưu thành công với ${urlPairs.length} cặp URL${summaryText}!`, 'success');
+                this.addLogEntry(`Cập nhật cấu hình báo cáo (${urlPairs.length} cặp URL${summaryText})`, 'success');
+                this.updateReportStatus(`Cấu hình báo cáo đã được lưu (${urlPairs.length} cặp URL${summaryText})`);
             } else {
                 this.showMessage(result.error || 'Không thể lưu cấu hình báo cáo', 'error');
             }
@@ -216,9 +225,9 @@ class ReportsManager {
             const result = await response.json();
 
             if (response.ok) {
-                this.showMessage(`Báo cáo đã được tạo thành công cho ngày ${result.date}! Đã xử lý ${result.storesProcessed} cửa hàng với ${result.totalRecords} bản ghi.`, 'success');
-                this.addLogEntry(`Tạo báo cáo: ${result.date} - ${result.storesProcessed} cửa hàng`, 'success');
-                this.updateReportStatus(`Báo cáo cuối: ${result.date} (${result.storesProcessed} cửa hàng)`);
+                this.showMessage(`Báo cáo đã được tạo thành công cho ngày ${result.date}! Đã xử lý ${result.totalStoresProcessed} cửa hàng với ${result.totalRecords} bản ghi.`, 'success');
+                this.addLogEntry(`Tạo báo cáo: ${result.date} - ${result.totalStoresProcessed} cửa hàng`, 'success');
+                this.updateReportStatus(`Báo cáo cuối: ${result.date} (${result.totalStoresProcessed} cửa hàng)`);
                 this.loadReportHistory();
             } else {
                 this.showMessage(result.error || 'Không thể tạo báo cáo', 'error');
@@ -292,6 +301,12 @@ class ReportsManager {
                     container.querySelector('.data-url').value = result.dataUrl || '';
                     container.querySelector('.report-url').value = result.reportUrl || '';
                     this.updateReportStatus('Cấu hình báo cáo đã được tải');
+                }
+                
+                // Load summary report URL
+                const summaryReportUrlInput = document.getElementById('summary-report-url');
+                if (summaryReportUrlInput) {
+                    summaryReportUrlInput.value = result.summaryReportUrl || '';
                 }
             } else {
                 this.updateReportStatus('Chưa cấu hình báo cáo');
