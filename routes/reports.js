@@ -6,6 +6,28 @@ const StorageService = require("../services/storageService");
 const googleSheetsService = new GoogleSheetsService();
 const storageService = new StorageService();
 
+// Function to get current USD to VND exchange rate
+async function getCurrentExchangeRate() {
+  try {
+    const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    const exchangeRate = data.rates.VND;
+    
+    if (!exchangeRate || exchangeRate <= 0) {
+      throw new Error('Invalid exchange rate received');
+    }
+    
+    console.log(`Current USD to VND exchange rate: ${exchangeRate}`);
+    return exchangeRate;
+  } catch (error) {
+    console.warn('Failed to fetch exchange rate, using fallback value 26000:', error.message);
+    return 26000; // Fallback value
+  }
+}
+
 // Get current report configuration
 router.get("/config", async (req, res) => {
   try {
@@ -909,12 +931,16 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
 
     console.log("Writing summary report for date:", targetDate);
 
+    // Get current exchange rate
+    const exchangeRate = await getCurrentExchangeRate();
+    console.log(`Using exchange rate for profit calculations: ${exchangeRate}`);
+
     // Read existing data to find where to insert new data
     let existingData = [];
     try {
       existingData = await googleSheetsService.readSheetValues(
         spreadsheetId,
-        `${sheetName}!A:F`
+        `${sheetName}!A:G`
       );
     } catch (readError) {
       console.warn(
@@ -936,11 +962,20 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
 
     // Calculate grand totals including all existing data
     let grandTotals = { ...overallTotals };
+    let grandTotalRowExists = false;
+    let grandTotalRowIndex = -1;
+    
     if (existingData.length > 1) {
-      // Sum all existing totals (skip header row)
+      // Check if grand total row already exists and find existing totals
       for (let i = 1; i < existingData.length; i++) {
         const row = existingData[i];
-        if (row[1] === "TỔNG" && row[0]) { // Only count TỔNG rows with dates
+        if (row[1] === "TỔNG TẤT CẢ") {
+          grandTotalRowExists = true;
+          grandTotalRowIndex = i;
+          // Don't include the existing grand total in calculations to avoid double counting
+          continue;
+        }
+        if (row[1] === "TỔNG" && row[0]) { // Only count daily TỔNG rows with dates
           grandTotals.totalSpend += parseFloat(row[2]) || 0;
           grandTotals.totalClicks += parseFloat(row[3]) || 0;
           grandTotals.totalCommission += parseFloat(row[4]) || 0;
@@ -949,6 +984,10 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       }
     }
 
+    // Calculate profit for totals (commission * exchange_rate - spend)
+    const overallProfit = (overallTotals.totalCommission * exchangeRate) - overallTotals.totalSpend;
+    const grandProfit = (grandTotals.totalCommission * exchangeRate) - grandTotals.totalSpend;
+
     // Prepare data structure
     const dataToWrite = [];
 
@@ -956,12 +995,13 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
     if (existingData.length === 0) {
       // Row 1: Headers
       dataToWrite.push([
-        "Date",
-        "Name/Sheet",
-        "Total Spend (VNĐ)",
-        "Total Clicks",
-        "Total Commission",
-        "Total Benefit ($)",
+        "Ngày",
+        "Tên Sheet",
+        "Số tiền chạy (VNĐ)",
+        "Tổng Click",
+        "Tổng CĐ",
+        "Tổng hoa hồng ($)",
+        `Lợi nhuận (VNĐ) - Tỷ giá: ${exchangeRate}`,
       ]);
     }
 
@@ -982,15 +1022,40 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       // Just append to the end for now - in a production system you might want to update in place
     }
 
-    // Add grand total row at the top (for all days combined)
-    dataToWrite.push([
-      "",
-      "TỔNG",
-      grandTotals.totalSpend,
-      grandTotals.totalClicks,
-      grandTotals.totalCommission,
-      grandTotals.totalBenefit,
-    ]);
+    // Handle grand total row - update existing or create new
+    if (grandTotalRowExists) {
+      console.log(`Updating existing grand total row at index ${grandTotalRowIndex}`);
+      // Update the existing grand total row
+      const grandTotalUpdateRange = `${sheetName}!A${grandTotalRowIndex + 1}:G${grandTotalRowIndex + 1}`;
+      const grandTotalUpdateData = [[
+        "",
+        "TỔNG TẤT CẢ",
+        grandTotals.totalSpend,
+        grandTotals.totalClicks,
+        grandTotals.totalCommission,
+        grandTotals.totalBenefit,
+        grandProfit,
+      ]];
+      
+      await googleSheetsService.writeSheetValues(
+        spreadsheetId,
+        grandTotalUpdateRange,
+        grandTotalUpdateData
+      );
+      
+      console.log(`Updated grand total row: ${grandTotalUpdateRange}`);
+    } else {
+      // Add grand total row at the top (for all days combined) - only if it doesn't exist
+      dataToWrite.push([
+        "",
+        "TỔNG TẤT CẢ",
+        grandTotals.totalSpend,
+        grandTotals.totalClicks,
+        grandTotals.totalCommission,
+        grandTotals.totalBenefit,
+        grandProfit,
+      ]);
+    }
 
     // Row for date with overall totals
     dataToWrite.push([
@@ -1000,10 +1065,12 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       overallTotals.totalClicks,
       overallTotals.totalCommission,
       overallTotals.totalBenefit,
+      overallProfit,
     ]);
 
     // Rows for each pair
     summaryData.forEach((pair, index) => {
+      const pairProfit = (pair.totalBenefit * exchangeRate) - pair.totalSpend;
       dataToWrite.push([
         "", // Empty date for sub-rows
         pair.sheetName || `Sheet ${index + 1}`,
@@ -1011,13 +1078,14 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
         pair.totalClicks,
         pair.totalCommission,
         pair.totalBenefit,
+        pairProfit,
       ]);
     });
 
     // Calculate the range to write
     const startRow = existingData.length === 0 ? 1 : nextRow + 1;
     const endRow = startRow + dataToWrite.length - 1;
-    const range = `${sheetName}!A${startRow}:F${endRow}`;
+    const range = `${sheetName}!A${startRow}:G${endRow}`;
 
     console.log(`Writing summary data to range: ${range}`);
     await googleSheetsService.writeSheetValues(
@@ -1072,61 +1140,64 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           0, // Header row
           1, // End at header row (exclusive)
           0, // Start column A
-          6, // End column F (exclusive)
+          7, // End column G (exclusive)
           headerFormat
         );
       }
 
       // Format the grand total row (special formatting for all-days total)
-      const grandTotalRowIndex = startRow - 1; // The first row is grand total
-      const grandTotalFormat = {
-        horizontalAlignment: "CENTER",
-        verticalAlignment: "MIDDLE",
-        textFormat: {
-          bold: true,
-          fontSize: 12,
-        },
-        backgroundColor: {
-          red: 0.8,
-          green: 0.8,
-          blue: 1.0, // Light blue for grand total
-        },
-        borders: {
-          top: {
-            style: "SOLID",
-            width: 3,
-            color: { red: 0, green: 0, blue: 0 },
+      // Only apply this formatting if we created a new grand total row
+      if (!grandTotalRowExists) {
+        const grandTotalRowIndex = startRow - 1; // The first row is grand total
+        const grandTotalFormat = {
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          textFormat: {
+            bold: true,
+            fontSize: 12,
           },
-          bottom: {
-            style: "SOLID",
-            width: 3,
-            color: { red: 0, green: 0, blue: 0 },
+          backgroundColor: {
+            red: 0.8,
+            green: 0.8,
+            blue: 1.0, // Light blue for grand total
           },
-          left: {
-            style: "SOLID",
-            width: 2,
-            color: { red: 0, green: 0, blue: 0 },
+          borders: {
+            top: {
+              style: "SOLID",
+              width: 3,
+              color: { red: 0, green: 0, blue: 0 },
+            },
+            bottom: {
+              style: "SOLID",
+              width: 3,
+              color: { red: 0, green: 0, blue: 0 },
+            },
+            left: {
+              style: "SOLID",
+              width: 2,
+              color: { red: 0, green: 0, blue: 0 },
+            },
+            right: {
+              style: "SOLID",
+              width: 2,
+              color: { red: 0, green: 0, blue: 0 },
+            },
           },
-          right: {
-            style: "SOLID",
-            width: 2,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-        },
-      };
+        };
 
-      await googleSheetsService.formatCells(
-        spreadsheetId,
-        gid || 0,
-        grandTotalRowIndex,
-        grandTotalRowIndex + 1,
-        0, // Start column A
-        6, // End column F (exclusive)
-        grandTotalFormat
-      );
+        await googleSheetsService.formatCells(
+          spreadsheetId,
+          gid || 0,
+          grandTotalRowIndex,
+          grandTotalRowIndex + 1,
+          0, // Start column A
+          7, // End column G (exclusive)
+          grandTotalFormat
+        );
+      }
 
-      // Format the daily total row (bold and highlighted) - it's the second data row
-      const totalRowIndex = startRow; // The TỔNG row is the second in dataToWrite
+      // Format the daily total row (bold and highlighted)
+      const totalRowIndex = grandTotalRowExists ? startRow - 1 : startRow; // Adjust index based on whether grand total was added
       const totalFormat = {
         horizontalAlignment: "CENTER",
         verticalAlignment: "MIDDLE",
@@ -1169,7 +1240,7 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
         totalRowIndex,
         totalRowIndex + 1,
         0, // Start column A
-        6, // End column F (exclusive)
+        7, // End column G (exclusive)
         totalFormat
       );
 
@@ -1202,10 +1273,10 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       await googleSheetsService.formatCells(
         spreadsheetId,
         gid || 0,
-        totalRowIndex + 1, // Start from pair rows (after both total rows)
+        totalRowIndex + 1, // Start from pair rows (after total row)
         totalRowIndex + summaryData.length + 1, // End at last pair row
         0, // Start column A
-        6, // End column F (exclusive)
+        7, // End column G (exclusive)
         borderFormat
       );
 
@@ -1214,7 +1285,7 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
         spreadsheetId,
         gid || 0,
         0, // Start from column A
-        6 // End at column F
+        7 // End at column G
       );
 
       console.log("Successfully applied formatting to summary report");
