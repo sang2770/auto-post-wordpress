@@ -9,7 +9,9 @@ const storageService = new StorageService();
 // Function to get current USD to VND exchange rate
 async function getCurrentExchangeRate() {
   try {
-    const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    const response = await fetch(
+      "https://api.exchangerate-api.com/v4/latest/USD"
+    );
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -17,13 +19,16 @@ async function getCurrentExchangeRate() {
     const exchangeRate = data.rates.VND;
 
     if (!exchangeRate || exchangeRate <= 0) {
-      throw new Error('Invalid exchange rate received');
+      throw new Error("Invalid exchange rate received");
     }
 
     console.log(`Current USD to VND exchange rate: ${exchangeRate}`);
     return exchangeRate;
   } catch (error) {
-    console.warn('Failed to fetch exchange rate, using fallback value 26000:', error.message);
+    console.warn(
+      "Failed to fetch exchange rate, using fallback value 26000:",
+      error.message
+    );
     return 26000; // Fallback value
   }
 }
@@ -51,11 +56,9 @@ router.post("/config", async (req, res) => {
     const { urlPairs, summaryReportUrl } = req.body;
 
     if (!urlPairs || !Array.isArray(urlPairs) || urlPairs.length === 0) {
-      return res
-        .status(400)
-        .json({
-          error: "At least one pair of data URL and report URL is required",
-        });
+      return res.status(400).json({
+        error: "At least one pair of data URL and report URL is required",
+      });
     }
 
     // Validate all URL pairs
@@ -64,11 +67,9 @@ router.post("/config", async (req, res) => {
       const { dataUrl, reportUrl } = pair;
 
       if (!dataUrl || !reportUrl) {
-        return res
-          .status(400)
-          .json({
-            error: "Both data URL and report URL are required for each pair",
-          });
+        return res.status(400).json({
+          error: "Both data URL and report URL are required for each pair",
+        });
       }
 
       // Validate URLs can extract sheet IDs
@@ -148,7 +149,8 @@ router.post("/test-data-connection", async (req, res) => {
 
     for (const [index, pair] of config.urlPairs.entries()) {
       console.log(
-        `Testing data connection for pair ${index + 1}/${config.urlPairs.length
+        `Testing data connection for pair ${index + 1}/${
+          config.urlPairs.length
         }`
       );
 
@@ -243,7 +245,7 @@ router.post("/generate", async (req, res) => {
         pairIndex: index,
         dataUrl: pair.dataUrl,
         reportUrl: pair.reportUrl,
-        reportData: reportData
+        reportData: reportData,
       };
 
       // Write report to the report sheet to get change information
@@ -277,7 +279,9 @@ router.post("/generate", async (req, res) => {
         dataUrl: pair.dataUrl,
         reportUrl: pair.reportUrl,
         storesProcessed: Object.keys(reportData).length,
-        changedStores: result.changedStoresData ? result.changedStoresData.length : 0,
+        changedStores: result.changedStoresData
+          ? result.changedStoresData.length
+          : 0,
         totalRecords: Object.values(reportData).reduce(
           (sum, store) => sum + store.records.length,
           0
@@ -300,7 +304,8 @@ router.post("/generate", async (req, res) => {
         }
       } catch (sheetError) {
         console.warn(
-          `Warning: Could not get sheet name for pair ${index + 1
+          `Warning: Could not get sheet name for pair ${
+            index + 1
           }, using default`
         );
       }
@@ -333,7 +338,9 @@ router.post("/generate", async (req, res) => {
     // Save all report data for future comparison
     try {
       await storageService.saveLastReport(allReportData);
-      console.log("Successfully saved all pairs report data for future comparison");
+      console.log(
+        "Successfully saved all pairs report data for future comparison"
+      );
     } catch (saveError) {
       console.warn(`Warning: Could not save report data: ${saveError.message}`);
     }
@@ -396,10 +403,10 @@ function parseDataNumber(data) {
 
 // Helper function to format numbers with thousands separators
 function formatNumber(number) {
-  if (typeof number !== 'number' || isNaN(number)) {
-    return '0';
+  if (typeof number !== "number" || isNaN(number)) {
+    return "0";
   }
-  return Math.round(number).toLocaleString('en-US');
+  return Math.round(number).toLocaleString("en-US");
 }
 
 // Helper function to convert column letter to index (A=0, B=1, etc.)
@@ -470,7 +477,12 @@ function processDataByStore(rawData, targetDate) {
 }
 
 // Write report data to Google Sheets
-async function writeReportToSheet(reportUrl, reportData, targetDate, pairIndex = 0) {
+async function writeReportToSheet(
+  reportUrl,
+  reportData,
+  targetDate,
+  pairIndex = 0
+) {
   try {
     const spreadsheetId = googleSheetsService.extractSheetId(reportUrl);
     const gid = googleSheetsService.extractGid(reportUrl);
@@ -651,7 +663,7 @@ async function writeReportToSheet(reportUrl, reportData, targetDate, pairIndex =
             totalClicks: storeData.totalClicks,
             totalCommission: storeData.totalCommission,
             totalBenefit: storeData.totalBenefit,
-            changeIndicator
+            changeIndicator,
           });
         }
 
@@ -981,7 +993,8 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           // Don't include the existing grand total in calculations to avoid double counting
           continue;
         }
-        if (row[1] === "TỔNG" && row[0]) { // Only count daily TỔNG rows with dates
+        if (row[1] === "TỔNG" && row[0]) {
+          // Only count daily TỔNG rows with dates
           grandTotals.totalSpend += parseFloat(row[2]) || 0;
           grandTotals.totalClicks += parseFloat(row[3]) || 0;
           grandTotals.totalCommission += parseFloat(row[4]) || 0;
@@ -991,8 +1004,10 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
     }
 
     // Calculate profit for totals (commission * exchange_rate - spend)
-    const overallProfit = (overallTotals.totalBenefit * exchangeRate) - overallTotals.totalSpend;
-    const grandProfit = (grandTotals.totalBenefit * exchangeRate) - grandTotals.totalSpend;
+    const overallProfit =
+      overallTotals.totalBenefit * exchangeRate - overallTotals.totalSpend;
+    const grandProfit =
+      grandTotals.totalBenefit * exchangeRate - grandTotals.totalSpend;
 
     // Prepare data structure
     const dataToWrite = [];
@@ -1030,18 +1045,24 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
 
     // Handle grand total row - update existing or create new
     if (grandTotalRowExists) {
-      console.log(`Updating existing grand total row at index ${grandTotalRowIndex}`);
+      console.log(
+        `Updating existing grand total row at index ${grandTotalRowIndex}`
+      );
       // Update the existing grand total row
-      const grandTotalUpdateRange = `${sheetName}!A${grandTotalRowIndex + 1}:G${grandTotalRowIndex + 1}`;
-      const grandTotalUpdateData = [[
-        "",
-        "TỔNG TẤT CẢ",
-        formatNumber(grandTotals.totalSpend),
-        formatNumber(grandTotals.totalClicks),
-        formatNumber(grandTotals.totalCommission),
-        formatNumber(grandTotals.totalBenefit),
-        formatNumber(grandProfit),
-      ]];
+      const grandTotalUpdateRange = `${sheetName}!A${grandTotalRowIndex + 1}:G${
+        grandTotalRowIndex + 1
+      }`;
+      const grandTotalUpdateData = [
+        [
+          "",
+          "TỔNG TẤT CẢ",
+          formatNumber(grandTotals.totalSpend),
+          formatNumber(grandTotals.totalClicks),
+          formatNumber(grandTotals.totalCommission),
+          formatNumber(grandTotals.totalBenefit),
+          formatNumber(grandProfit),
+        ],
+      ];
 
       await googleSheetsService.writeSheetValues(
         spreadsheetId,
@@ -1076,7 +1097,7 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
 
     // Rows for each pair
     summaryData.forEach((pair, index) => {
-      const pairProfit = (pair.totalBenefit * exchangeRate) - pair.totalSpend;
+      const pairProfit = pair.totalBenefit * exchangeRate - pair.totalSpend;
       dataToWrite.push([
         "", // Empty date for sub-rows
         pair.sheetName || `Sheet ${index + 1}`,
@@ -1100,46 +1121,54 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       dataToWrite
     );
 
+    const headerFormat = {
+      horizontalAlignment: "CENTER",
+      verticalAlignment: "MIDDLE",
+      textFormat: {
+        bold: true,
+        fontSize: 12,
+      },
+      backgroundColor: {
+        red: 223 / 255,
+        green: 228 / 255,
+        blue: 236 / 255,
+      },
+      borders: {
+        top: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
+        bottom: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
+        left: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
+        right: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
+      },
+    };
+
+    const totalFormat = {
+      ...headerFormat,
+      textFormat: {
+        bold: true,
+        fontSize: 10,
+      },
+    };
+
     // Apply formatting
     try {
       // Format headers if this is the first write
       if (existingData.length === 0) {
-        const headerFormat = {
-          horizontalAlignment: "CENTER",
-          verticalAlignment: "MIDDLE",
-          textFormat: {
-            bold: true,
-            fontSize: 12,
-          },
-          backgroundColor: {
-            red: 223 / 255,
-            green: 228 / 255,
-            blue: 236 / 255,
-          },
-          borders: {
-            top: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-            bottom: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-            left: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-            right: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-          },
-        };
-
         await googleSheetsService.formatCells(
           spreadsheetId,
           gid || 0,
@@ -1149,60 +1178,21 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           7, // End column G (exclusive)
           headerFormat
         );
+
+        await googleSheetsService.formatCells(
+          spreadsheetId,
+          gid || 0,
+          1, // Header row
+          2, // End at header row (exclusive)
+          0, // Start column A
+          7, // End column G (exclusive)
+          totalFormat
+        );
       }
 
-      // Format the daily total row (bold and highlighted)
-      const totalRowIndex = existingData.length === 0 ? startRow + 1 : startRow; // Adjust index based on whether grand total was added
-      const totalFormat = {
-        horizontalAlignment: "CENTER",
-        verticalAlignment: "MIDDLE",
-        textFormat: {
-          bold: true,
-          fontSize: 11,
-        },
-        backgroundColor: {
-          red: 0.9,
-          green: 0.9,
-          blue: 0.9,
-        },
-        borders: {
-          top: {
-            style: "SOLID",
-            width: 2,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-          bottom: {
-            style: "SOLID",
-            width: 2,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-          left: {
-            style: "SOLID",
-            width: 1,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-          right: {
-            style: "SOLID",
-            width: 1,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-        },
-      };
-
-      await googleSheetsService.formatCells(
-        spreadsheetId,
-        gid || 0,
-        totalRowIndex,
-        totalRowIndex + 1,
-        0, // Start column A
-        7, // End column G (exclusive)
-        totalFormat
-      );
-
       // Apply borders to pair data rows (after the total rows)
-      const pairRowsStartIndex = totalRowIndex - 1; // Start from pair rows (after total row)
-      const pairRowsEndIndex = pairRowsStartIndex + summaryData.length + (existingData.length === 0 ? 2 : 1); // End at last pair row (inclusive)
-
+      const pairRowsStartIndex = existingData.length === 0 ? 2 : startRow - 1; // Start from pair rows (after total row)
+      const pairRowsEndIndex = pairRowsStartIndex + summaryData.length + 1;
 
       if (summaryData.length > 0) {
         const borderFormat = {
@@ -1230,7 +1220,9 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           },
         };
 
-        console.log(`Applying borders to pair rows from index ${pairRowsStartIndex} to ${pairRowsEndIndex}`);
+        console.log(
+          `Applying borders to pair rows from index ${pairRowsStartIndex} to ${pairRowsEndIndex}`
+        );
 
         await googleSheetsService.formatCells(
           spreadsheetId,
