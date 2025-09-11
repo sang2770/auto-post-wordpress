@@ -1194,8 +1194,8 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       }
 
       // Apply borders to pair data rows (after the total rows)
-      const pairRowsStartIndex = existingData.length === 0 ? 2 : nextRow + 1; // Start from pair rows (after total row)
-      const pairRowsEndIndex = pairRowsStartIndex + dataToWrite.length;
+      const pairRowsStartIndex = existingData.length === 0 ? 2 : startRow - 1; // Start from pair rows (after total row)
+      const pairRowsEndIndex = pairRowsStartIndex + summaryData.length + 1;
 
       if (summaryData.length > 0) {
         const borderFormat = {
@@ -1253,7 +1253,7 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
               gid || 0,
               dateRowIndex, // The date total row (parent row)
               dateRowIndex + 1, // First detail row
-              lastDetailRowIndex + 2 // Last detail row
+              lastDetailRowIndex + 1 // Last detail row
             );
             
             console.log(`Created row grouping for date ${targetDate} from rows ${dateRowIndex + 1} to ${lastDetailRowIndex}`);
