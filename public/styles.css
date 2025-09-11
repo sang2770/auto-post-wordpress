@@ -178,6 +178,16 @@ body {
     box-shadow: 0 4px 16px rgba(40, 167, 69, 0.4);
 }
 
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
+
+.btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(220, 53, 69, 0.4);
+}
+
 .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -541,7 +551,7 @@ body {
     background: white;
     border-radius: 8px;
     margin-bottom: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .report-history-item i {
@@ -629,42 +639,228 @@ body {
     color: #5a6268;
 }
 
+/* Google Ads Interface Styles */
+.form-select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e1e8ed;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background-color: white;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.clickable-account {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #e1e8ed !important;
+}
+
+.clickable-account:hover {
+    border-color: #667eea !important;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3) !important;
+    transform: translateY(-2px);
+}
+
+.clickable-account.selected {
+    border-color: #667eea !important;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e9ecff 100%) !important;
+}
+
+.form-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 12px;
+    margin: 15px 0;
+    border: 2px solid #e9ecef;
+}
+
+.form-section h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.url-pair {
+    margin-bottom: 10px;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.message-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    max-width: 400px;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-overlay p {
+    color: white;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.status-text {
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Button Group Styles */
+.button-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 15px 0;
+}
+
+.button-group .btn {
+    flex: none;
+}
+
+/* Enhanced status items for better visual hierarchy */
+.status-item i {
+    font-size: 1.2rem;
+    min-width: 24px;
+}
+
+.status-item strong {
+    font-size: 1rem;
+    margin-bottom: 2px;
+    display: block;
+}
+
+.status-item p {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Table enhancements */
+.campaigns-table {
+    margin-top: 15px;
+}
+
+.campaigns-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* Mobile responsive adjustments for Google Ads */
 @media (max-width: 768px) {
-    .container {
-        padding: 15px;
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    .header h1 {
-        font-size: 2rem;
+    .message-container {
+        position: relative;
+        top: auto;
+        right: auto;
+        max-width: 100%;
+        margin: 10px 0;
     }
 
-    .main-content {
-        grid-template-columns: 1fr;
-    }
-
-    .action-buttons {
+    .button-group {
         flex-direction: column;
     }
 
-    .action-buttons .btn {
+    .button-group .btn {
         width: 100%;
     }
+}
 
-    .status-grid {
-        grid-template-columns: 1fr;
+/* Authentication status styles */
+.auth-section {
+    margin: 20px 0;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: 10px;
+}
+
+.status-indicator.success {
+    background-color: #28a745;
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.4);
+}
+
+.status-indicator.error {
+    background-color: #dc3545;
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
+}
+
+.status-indicator.checking {
+    background-color: #ffc107;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
     }
 
-    .form-row {
-        grid-template-columns: 1fr;
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
     }
 
-    .url-pair-actions {
-        margin-top: 10px;
-        justify-content: flex-end;
-        width: 100%;
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
     }
-    
-    .form-row {
-        flex-direction: column;
-    }
+}
+
+.auth-message {
+    font-style: italic;
+    margin-top: 10px;
+    color: #666;
 }

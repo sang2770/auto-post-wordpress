@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Ads Integration - Auto Store Creator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1><i class="fas fa-bullhorn"></i> Google Ads Integration</h1>
+        <p>Tự động đồng bộ dữ liệu Google Ads với Google Sheets</p>
+        <div class="navigation">
+          <a href="/" class="nav-link">
+            <i class="fas fa-home"></i> Trang Chủ
+          </a>
+          <a href="/reports.html" class="nav-link">
+            <i class="fas fa-chart-bar"></i> Báo Cáo
+          </a>
+          <a href="/google-ads.html" class="nav-link active">
+            <i class="fas fa-bullhorn"></i> Google Ads
+          </a>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <!-- Configuration Status -->
+        <section class="card" id="config-status-section">
+          <h2><i class="fas fa-cog"></i> Trạng Thái Cấu Hình</h2>
+          <div id="configStatus" style="margin-bottom: 10px">
+            <p class="status-text">Đang tải cấu hình...</p>
+          </div>
+        </section>
+
+        <!-- Authentication Section -->
+        <section class="card" id="auth-section">
+          <h2><i class="fas fa-key"></i> Xác Thực Tài Khoản Google Ads</h2>
+          <div class="auth-status">
+            <div id="authStatus" class="status-item">
+              <span class="status-text"
+                >Đang kiểm tra các tài khoản đã xác thực...</span
+              >
+              <span id="authIndicator" class="status-indicator checking"></span>
+            </div>
+            <div id="authenticatedAccounts" style="margin-top: 15px">
+              <!-- Authenticated accounts will be shown here -->
+            </div>
+            <div id="authControls" style="display: none; margin-top: 15px">
+              <button
+                id="authenticateBtn"
+                class="btn btn-primary"
+                style="display: none"
+              >
+                <i class="fas fa-key"></i> Xác thực Google Ads (Chung)
+              </button>
+              <p
+                id="authMessage"
+                class="auth-message"
+                style="display: none; margin-top: 10px; color: #666"
+              ></p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Account Management -->
+        <section class="card" id="account-management-section">
+          <h2><i class="fas fa-building"></i> Quản Lý Tài Khoản</h2>
+          <div class="form-group">
+            <label for="newAccountId">Thêm tài khoản mới:</label>
+            <div class="form-row">
+              <input
+                type="text"
+                id="newAccountId"
+                placeholder="123-456-7890"
+                class="sheet-url"
+                style="flex: 2"
+              />
+              <input
+                type="text"
+                id="newAccountName"
+                placeholder="Tên tài khoản"
+                class="sheet-url"
+                style="flex: 3"
+              />
+              <button
+                class="btn btn-primary"
+                onclick="authenticateNewAccount()"
+                style="min-width: 120px"
+              >
+                <i class="fas fa-key"></i> Xác thực
+              </button>
+            </div>
+            <small>Nhập Customer ID và tên tài khoản để xác thực riêng</small>
+          </div>
+        </section>
+
+        <!-- Account Configurations -->
+        <section class="card" id="configurations-section">
+          <h2><i class="fas fa-users-cog"></i> Cấu Hình Tài Khoản</h2>
+
+          <div id="existingConfigs">
+            <!-- Existing configurations will be loaded here -->
+          </div>
+
+          <div class="button-group" style="margin: 20px 0">
+            <button
+              class="btn btn-success"
+              onclick="syncAllAccounts()"
+              id="syncAllBtn"
+              style="display: none"
+            >
+              <i class="fas fa-sync-alt"></i> Đồng Bộ Tất Cả
+            </button>
+          </div>
+
+          <div id="newConfigSection" style="display: none" class="form-section">
+            <h3><i class="fas fa-plus"></i> Thêm Cấu Hình Tài Khoản Mới</h3>
+
+            <div class="form-group">
+              <label>Tài Khoản Đã Chọn:</label>
+              <div id="selectedAccountInfo" class="status-item">
+                Chưa chọn tài khoản - Nhấp vào tài khoản bên dưới
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>URL Google Sheets:</label>
+              <div id="newConfigSheetUrls">
+                <div class="url-pair">
+                  <div class="form-row">
+                    <input
+                      type="url"
+                      placeholder="https://docs.google.com/spreadsheets/d/.../edit"
+                      class="sheet-url"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-icon remove-url-pair"
+                      onclick="removeSheetUrl(this)"
+                      title="Xóa URL này"
+                    >
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                onclick="addNewConfigSheetUrl()"
+              >
+                <i class="fas fa-plus"></i> Thêm Sheet URL
+              </button>
+            </div>
+
+            <div class="form-group">
+              <label for="newConfigSyncInterval"
+                >Khoảng Thời Gian Đồng Bộ:</label
+              >
+              <select id="newConfigSyncInterval" class="form-select">
+                <option value="manual">Chỉ Thủ Công</option>
+                <option value="hourly">Mỗi Giờ</option>
+                <option value="daily">Hàng Ngày</option>
+                <option value="weekly">Hàng Tuần</option>
+              </select>
+            </div>
+
+            <div class="button-group">
+              <button class="btn btn-success" onclick="saveNewConfiguration()">
+                <i class="fas fa-save"></i> Lưu Cấu Hình
+              </button>
+              <button
+                class="btn btn-secondary"
+                onclick="cancelNewConfiguration()"
+              >
+                <i class="fas fa-times"></i> Hủy
+              </button>
+            </div>
+          </div>
+
+          <button
+            id="addNewConfigBtn"
+            class="btn btn-primary"
+            onclick="showNewConfigForm()"
+          >
+            <i class="fas fa-plus"></i> Thêm Cấu Hình Tài Khoản
+          </button>
+        </section>
+
+        <!-- Available Accounts -->
+        <section class="card" id="accountsSection" style="display: none">
+          <h2><i class="fas fa-building"></i> Tài Khoản Đã Xác Thực</h2>
+          <div id="accountsContainer"></div>
+        </section>
+
+        <!-- Campaign Preview -->
+        <section class="card" id="campaignsSection" style="display: none">
+          <h2><i class="fas fa-chart-line"></i> Xem Trước Chiến Dịch</h2>
+          <div id="campaignsContainer"></div>
+        </section>
+
+        <!-- Sync Results -->
+        <section class="card" id="syncResultsSection" style="display: none">
+          <h2><i class="fas fa-sync-alt"></i> Kết Quả Đồng Bộ</h2>
+          <div id="syncResults"></div>
+        </section>
+      </main>
+
+      <!-- Success/Error Messages -->
+      <div id="alertContainer" class="message-container"></div>
+
+      <!-- Loading Overlay -->
+      <div id="loading-overlay" class="loading-overlay" style="display: none">
+        <div class="spinner"></div>
+        <p>Đang xử lý...</p>
+      </div>
+    </div>
+
+    <script>
+      let selectedCustomerId = null;
+      let selectedCustomerName = null;
+
+      // Load initial configuration and check authentication
+      window.addEventListener("load", function () {
+        loadAuthenticatedAccounts();
+        loadConfiguration();
+      });
+
+      // Authentication functions
+      async function loadAuthenticatedAccounts() {
+        try {
+          const response = await fetch("/api/google-ads/auth/accounts");
+          const data = await response.json();
+
+          const authStatus = document.getElementById("authStatus");
+          const authIndicator = document.getElementById("authIndicator");
+          const authenticatedAccountsDiv = document.getElementById(
+            "authenticatedAccounts"
+          );
+
+          if (data.success && data.accounts.length > 0) {
+            authStatus.innerHTML = `
+              <span class="status-text">Tìm thấy ${data.accounts.length} tài khoản đã xác thực</span>
+            `;
+            authIndicator.className = "status-indicator success";
+            displayAuthenticatedAccounts(data.accounts);
+            enableGoogleAdsFeatures(true);
+          } else {
+            authStatus.innerHTML = `
+              <span class="status-text">Chưa có tài khoản nào được xác thực</span>
+            `;
+            authIndicator.className = "status-indicator error";
+            authenticatedAccountsDiv.innerHTML = `
+              <div class="status-item">
+                <i class="fas fa-info-circle" style="color: #17a2b8;"></i>
+                <div>
+                  <strong>Hướng dẫn</strong>
+                  <p>Sử dụng form bên dưới để thêm và xác thực tài khoản Google Ads</p>
+                </div>
+              </div>
+            `;
+            enableGoogleAdsFeatures(false);
+          }
+        } catch (error) {
+          console.error("Error loading authenticated accounts:", error);
+          const authStatus = document.getElementById("authStatus");
+          const authIndicator = document.getElementById("authIndicator");
+          authStatus.innerHTML = `
+            <span class="status-text">Lỗi kiểm tra xác thực</span>
+          `;
+          authIndicator.className = "status-indicator error";
+          enableGoogleAdsFeatures(false);
+        }
+      }
+
+      function displayAuthenticatedAccounts(accounts) {
+        const container = document.getElementById("authenticatedAccounts");
+        let html =
+          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">';
+
+        accounts.forEach((account) => {
+          html += `
+            <div class="card" style="border: 2px solid #28a745; background: linear-gradient(135deg, #d4edda 0%, #e8f5e8 100%);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h4 style="margin: 0 0 5px 0; color: #155724;">
+                    <i class="fas fa-building"></i> ${account.customerName}
+                  </h4>
+                  <p style="margin: 0; color: #495057; font-size: 14px;">ID: ${
+                    account.customerId
+                  }</p>
+                  <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 12px;">
+                    Xác thực: ${new Date(
+                      account.authenticatedAt
+                    ).toLocaleString("vi-VN")}
+                  </p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                  <span class="status-indicator success" style="position: relative; margin: 0;"></span>
+                  <button class="btn btn-secondary btn-sm" onclick="reauthenticateAccount('${
+                    account.customerId
+                  }', '${
+            account.customerName
+          }')" style="font-size: 12px; padding: 5px 10px;">
+                    <i class="fas fa-refresh"></i> Làm mới
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      async function authenticateNewAccount() {
+        const customerId = document.getElementById("newAccountId").value.trim();
+        const customerName = document
+          .getElementById("newAccountName")
+          .value.trim();
+
+        if (!customerId || !customerName) {
+          showAlert(
+            "Vui lòng nhập đầy đủ Customer ID và tên tài khoản",
+            "error"
+          );
+          return;
+        }
+
+        try {
+          showLoading(true);
+          const response = await fetch(
+            `/api/google-ads/auth/start/${customerId}?customerName=${encodeURIComponent(
+              customerName
+            )}`
+          );
+          const data = await response.json();
+
+          if (data.success && data.authUrl) {
+            const authWindow = window.open(
+              data.authUrl,
+              "googleAdsAuth",
+              "width=600,height=700,scrollbars=yes,resizable=yes"
+            );
+
+            const checkClosed = setInterval(() => {
+              if (authWindow.closed) {
+                clearInterval(checkClosed);
+                showLoading(false);
+                // Clear form and reload accounts
+                document.getElementById("newAccountId").value = "";
+                document.getElementById("newAccountName").value = "";
+                setTimeout(() => {
+                  loadAuthenticatedAccounts();
+                  showAlert(
+                    `Xác thực thành công cho tài khoản ${customerName}!`,
+                    "success"
+                  );
+                }, 1000);
+              }
+            }, 1000);
+          } else {
+            throw new Error(data.error || "Không thể tạo URL xác thực");
+          }
+        } catch (error) {
+          showLoading(false);
+          showAlert("Lỗi khi bắt đầu xác thực: " + error.message, "error");
+        }
+      }
+
+      async function reauthenticateAccount(customerId, customerName) {
+        if (
+          !confirm(
+            `Bạn có muốn làm mới xác thực cho tài khoản ${customerName}?`
+          )
+        ) {
+          return;
+        }
+
+        // Reuse the same function
+        document.getElementById("newAccountId").value = customerId;
+        document.getElementById("newAccountName").value = customerName;
+        await authenticateNewAccount();
+      }
+
+      function enableGoogleAdsFeatures(enabled) {
+        const sections = [
+          "configurations-section",
+          "accountsSection",
+          "campaignsSection",
+        ];
+
+        sections.forEach((sectionId) => {
+          const section = document.getElementById(sectionId);
+          if (section) {
+            if (enabled) {
+              section.style.display = "block";
+              section.style.opacity = "1";
+            } else {
+              section.style.opacity = "0.5";
+            }
+          }
+        });
+
+        // Disable/enable buttons
+        const buttons = document.querySelectorAll(
+          "#configurations-section button, #accountsSection button"
+        );
+        buttons.forEach((btn) => {
+          btn.disabled = !enabled;
+        });
+      }
+
+      async function authenticateGoogleAds() {
+        try {
+          showLoading(true);
+          const response = await fetch("/api/google-ads/auth/start");
+          const data = await response.json();
+
+          if (data.success && data.authUrl) {
+            // Open auth URL in new window
+            const authWindow = window.open(
+              data.authUrl,
+              "googleAdsAuth",
+              "width=600,height=700,scrollbars=yes,resizable=yes"
+            );
+
+            // Check for window closure (auth completion)
+            const checkClosed = setInterval(() => {
+              if (authWindow.closed) {
+                clearInterval(checkClosed);
+                showLoading(false);
+                // Check auth status after window closes
+                setTimeout(() => {
+                  checkAuthenticationStatus();
+                  showAlert("Đang kiểm tra trạng thái xác thực...", "info");
+                }, 1000);
+              }
+            }, 1000);
+          } else {
+            throw new Error(data.error || "Không thể tạo URL xác thực");
+          }
+        } catch (error) {
+          showLoading(false);
+          showAlert("Lỗi khi bắt đầu xác thực: " + error.message, "error");
+        }
+      }
+
+      // Add event listener for authenticate button
+      document.addEventListener("DOMContentLoaded", function () {
+        const authenticateBtn = document.getElementById("authenticateBtn");
+        if (authenticateBtn) {
+          authenticateBtn.addEventListener("click", authenticateGoogleAds);
+        }
+      });
+
+      async function loadConfiguration() {
+        try {
+          const response = await fetch("/api/google-ads/config");
+          const data = await response.json();
+
+          const configDiv = document.getElementById("configStatus");
+
+          if (data.success && Object.keys(data.googleAdsConfig).length > 0) {
+            configDiv.innerHTML = `
+              <div class="status-item">
+                <i class="fas fa-check-circle" style="color: #28a745;"></i>
+                <div>
+                  <strong>Đã Cấu Hình</strong>
+                  <p>Tìm thấy ${
+                    Object.keys(data.googleAdsConfig).length
+                  } tài khoản đã cấu hình</p>
+                </div>
+              </div>
+            `;
+            displayExistingConfigs(data.googleAdsConfig);
+          } else {
+            configDiv.innerHTML = `
+              <div class="status-item">
+                <i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i>
+                <div>
+                  <strong>Chưa Cấu Hình</strong>
+                  <p>Chưa có tài khoản Google Ads nào được cấu hình</p>
+                </div>
+              </div>
+            `;
+          }
+        } catch (error) {
+          showAlert("Lỗi khi tải cấu hình: " + error.message, "error");
+        }
+      }
+
+      function displayExistingConfigs(configs) {
+        const container = document.getElementById("existingConfigs");
+        const syncAllBtn = document.getElementById("syncAllBtn");
+        let html = "";
+
+        const configCount = Object.keys(configs).length;
+
+        for (const [customerId, config] of Object.entries(configs)) {
+          html += `
+            <div class="card" style="margin-bottom: 15px; border: 2px solid #e1e8ed;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1;">
+                  <h4 style="margin: 0 0 10px 0; color: #2c3e50;">
+                    <i class="fas fa-building"></i> ${
+                      config.customerName || "Không xác định"
+                    } 
+                    <span style="color: #6c757d; font-size: 0.9em;">(${customerId})</span>
+                  </h4>
+                  <div class="status-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="status-item">
+                      <i class="fas fa-table" style="color: #667eea;"></i>
+                      <div>
+                        <strong>Sheets</strong>
+                        <p>${config.sheetUrls.length} sheet(s)</p>
+                      </div>
+                    </div>
+                    <div class="status-item">
+                      <i class="fas fa-clock" style="color: #667eea;"></i>
+                      <div>
+                        <strong>Đồng Bộ</strong>
+                        <p>${config.syncInterval || "thủ công"}</p>
+                      </div>
+                    </div>
+                    <div class="status-item">
+                      <i class="fas fa-calendar-alt" style="color: #667eea;"></i>
+                      <div>
+                        <strong>Lần Cuối</strong>
+                        <p>${
+                          config.lastSync
+                            ? new Date(config.lastSync).toLocaleString("vi-VN")
+                            : "Chưa bao giờ"
+                        }</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="margin-top: 15px;">
+                    <strong><i class="fas fa-link"></i> URLs Sheet:</strong>
+                    <ul style="margin: 5px 0 0 20px; padding: 0; list-style-type: none;">
+                      ${config.sheetUrls
+                        .map(
+                          (url) => `
+                        <li style="margin: 5px 0;">
+                          <i class="fas fa-external-link-alt" style="color: #667eea; margin-right: 5px;"></i>
+                          <a href="${url}" target="_blank" style="color: #667eea; text-decoration: none;">${url.substring(
+                            0,
+                            60
+                          )}...</a>
+                        </li>
+                      `
+                        )
+                        .join("")}
+                    </ul>
+                  </div>
+                </div>
+                <div style="margin-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+                  <button class="btn btn-secondary" onclick="editConfig('${customerId}')">
+                    <i class="fas fa-edit"></i> Sửa
+                  </button>
+                  <button class="btn btn-primary" onclick="syncAccount('${customerId}')">
+                    <i class="fas fa-sync-alt"></i> Đồng Bộ
+                  </button>
+                  <button class="btn btn-danger" onclick="removeConfig('${customerId}')">
+                    <i class="fas fa-trash-alt"></i> Xóa
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        if (html === "") {
+          html = `
+            <div class="status-item">
+              <i class="fas fa-info-circle" style="color: #17a2b8;"></i>
+              <div>
+                <strong>Chưa có cấu hình</strong>
+                <p>Bấm "Thêm Cấu Hình Tài Khoản" để bắt đầu</p>
+              </div>
+            </div>
+          `;
+          syncAllBtn.style.display = "none";
+        } else {
+          syncAllBtn.style.display = "block";
+        }
+
+        container.innerHTML = html;
+      }
+
+      function showNewConfigForm() {
+        document.getElementById("newConfigSection").style.display = "block";
+        document.getElementById("addNewConfigBtn").style.display = "none";
+        document.getElementById("accountsSection").style.display = "block";
+        selectedCustomerId = null;
+        selectedCustomerName = null;
+        updateSelectedAccountInfo();
+        loadAuthenticatedAccountsForSelection();
+      }
+
+      async function loadAuthenticatedAccountsForSelection() {
+        try {
+          const response = await fetch("/api/google-ads/auth/accounts");
+          const data = await response.json();
+
+          if (data.success && data.accounts.length > 0) {
+            displayAccountsForSelection(data.accounts);
+          } else {
+            document.getElementById("accountsContainer").innerHTML = `
+              <div class="status-item">
+                <i class="fas fa-exclamation-triangle" style="color: #ffc107;"></i>
+                <div>
+                  <strong>Không có tài khoản đã xác thực</strong>
+                  <p>Vui lòng xác thực ít nhất một tài khoản Google Ads trước khi cấu hình</p>
+                </div>
+              </div>
+            `;
+          }
+        } catch (error) {
+          console.error(
+            "Error loading authenticated accounts for selection:",
+            error
+          );
+          document.getElementById("accountsContainer").innerHTML = `
+            <div class="alert alert-error">Lỗi khi tải danh sách tài khoản đã xác thực</div>
+          `;
+        }
+      }
+
+      function displayAccountsForSelection(accounts) {
+        const container = document.getElementById("accountsContainer");
+
+        let html = `
+          <div class="status-item">
+            <i class="fas fa-info-circle" style="color: #17a2b8;"></i>
+            <div>
+              <strong>Chọn tài khoản đã xác thực</strong>
+              <p>Chỉ các tài khoản đã xác thực mới có thể được cấu hình</p>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 15px;">
+        `;
+
+        accounts.forEach((account) => {
+          html += `
+            <div class="card clickable-account" onclick="selectAccountForConfig('${
+              account.customerId
+            }', '${account.customerName}')" 
+                 style="cursor: pointer; transition: all 0.3s ease; border: 2px solid #28a745;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50;">
+                <i class="fas fa-building"></i> ${account.customerName}
+                <span style="color: #28a745; font-size: 0.8em;"><i class="fas fa-check-circle"></i> Đã xác thực</span>
+              </h4>
+              <div class="status-grid">
+                <div class="status-item">
+                  <i class="fas fa-id-card" style="color: #667eea;"></i>
+                  <div>
+                    <strong>ID</strong>
+                    <p>${account.customerId}</p>
+                  </div>
+                </div>
+                <div class="status-item">
+                  <i class="fas fa-calendar-alt" style="color: #667eea;"></i>
+                  <div>
+                    <strong>Xác thực</strong>
+                    <p>${new Date(account.authenticatedAt).toLocaleDateString(
+                      "vi-VN"
+                    )}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      function cancelNewConfiguration() {
+        document.getElementById("newConfigSection").style.display = "none";
+        document.getElementById("addNewConfigBtn").style.display = "block";
+        document.getElementById("accountsSection").style.display = "none";
+        selectedCustomerId = null;
+        selectedCustomerName = null;
+      }
+
+      function updateSelectedAccountInfo() {
+        const infoDiv = document.getElementById("selectedAccountInfo");
+        if (selectedCustomerId && selectedCustomerName) {
+          infoDiv.innerHTML = `
+            <i class="fas fa-check-circle" style="color: #28a745;"></i>
+            <div>
+              <strong>${selectedCustomerName}</strong>
+              <p>ID: ${selectedCustomerId}</p>
+            </div>
+          `;
+          infoDiv.style.borderLeftColor = "#28a745";
+        } else {
+          infoDiv.innerHTML = `
+            <i class="fas fa-info-circle" style="color: #17a2b8;"></i>
+            <div>
+              <strong>Chưa chọn tài khoản</strong>
+              <p>Nhấp vào tài khoản bên dưới để chọn</p>
+            </div>
+          `;
+          infoDiv.style.borderLeftColor = "#17a2b8";
+        }
+      }
+
+      async function loadAccounts() {
+        try {
+          showLoading(true);
+          document.getElementById("accountsContainer").innerHTML =
+            '<p class="status-text">Đang tải danh sách tài khoản...</p>';
+
+          const response = await fetch("/api/google-ads/accounts");
+          const data = await response.json();
+
+          if (data.success) {
+            displayAccounts(data.accounts);
+          } else {
+            throw new Error(data.error || "Không thể tải danh sách tài khoản");
+          }
+        } catch (error) {
+          showAlert("Lỗi khi tải tài khoản: " + error.message, "error");
+          document.getElementById("accountsContainer").innerHTML =
+            '<div class="alert alert-error">Lỗi khi tải danh sách tài khoản</div>';
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function displayAccounts(accounts) {
+        const container = document.getElementById("accountsContainer");
+
+        if (accounts.length === 0) {
+          container.innerHTML = `
+            <div class="status-item">
+              <i class="fas fa-info-circle" style="color: #17a2b8;"></i>
+              <div>
+                <strong>Không tìm thấy tài khoản</strong>
+                <p>Không có tài khoản Google Ads nào có thể truy cập</p>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        let html =
+          '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 15px;">';
+
+        accounts.forEach((account) => {
+          html += `
+            <div class="card clickable-account" onclick="selectAccountForConfig('${
+              account.id
+            }', '${account.name}')" 
+                 style="cursor: pointer; transition: all 0.3s ease; border: 2px solid #e1e8ed;">
+              <h4 style="margin: 0 0 10px 0; color: #2c3e50;">
+                <i class="fas fa-building"></i> ${account.name}
+              </h4>
+              <div class="status-grid">
+                <div class="status-item">
+                  <i class="fas fa-id-card" style="color: #667eea;"></i>
+                  <div>
+                    <strong>ID</strong>
+                    <p>${account.id}</p>
+                  </div>
+                </div>
+                <div class="status-item">
+                  <i class="fas fa-coins" style="color: #667eea;"></i>
+                  <div>
+                    <strong>Tiền tệ</strong>
+                    <p>${account.currencyCode}</p>
+                  </div>
+                </div>
+                <div class="status-item">
+                  <i class="fas fa-tag" style="color: #667eea;"></i>
+                  <div>
+                    <strong>Loại</strong>
+                    <p>${account.isManager ? "Quản lý" : "Thường"}</p>
+                  </div>
+                </div>
+              </div>
+              ${
+                account.isTestAccount
+                  ? '<div style="color: #ffc107; margin-top: 10px;"><i class="fas fa-flask"></i> Tài khoản thử nghiệm</div>'
+                  : ""
+              }
+            </div>
+          `;
+        });
+
+        html += "</div>";
+        container.innerHTML = html;
+      }
+
+      function selectAccountForConfig(customerId, customerName) {
+        selectedCustomerId = customerId;
+        selectedCustomerName = customerName;
+
+        // Update UI
+        document.querySelectorAll(".clickable-account").forEach((card) => {
+          card.classList.remove("selected");
+        });
+        event.currentTarget.classList.add("selected");
+
+        updateSelectedAccountInfo();
+        loadCampaignPreview();
+      }
+
+      async function loadCampaignPreview() {
+        if (!selectedCustomerId) return;
+
+        try {
+          document.getElementById("campaignsSection").style.display = "block";
+          document.getElementById("campaignsContainer").innerHTML =
+            '<p class="status-text">Đang tải xem trước chiến dịch...</p>';
+
+          const response = await fetch(
+            `/api/google-ads/campaigns/${selectedCustomerId}`
+          );
+          const data = await response.json();
+
+          if (data.success) {
+            displayCampaignPreview(data.campaigns);
+          } else {
+            throw new Error(data.error || "Không thể tải chiến dịch");
+          }
+        } catch (error) {
+          showAlert("Lỗi khi tải chiến dịch: " + error.message, "error");
+          document.getElementById("campaignsContainer").innerHTML =
+            '<div class="alert alert-error">Lỗi khi tải chiến dịch</div>';
+        }
+      }
+
+      function displayCampaignPreview(campaigns) {
+        const container = document.getElementById("campaignsContainer");
+
+        if (campaigns.length === 0) {
+          container.innerHTML = `
+            <div class="status-item">
+              <i class="fas fa-info-circle" style="color: #17a2b8;"></i>
+              <div>
+                <strong>Không có chiến dịch</strong>
+                <p>Không tìm thấy chiến dịch nào cho tài khoản này</p>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        let html = `
+          <div class="status-item">
+            <i class="fas fa-chart-line" style="color: #28a745;"></i>
+            <div>
+              <strong>Xem trước ${campaigns.length} chiến dịch</strong>
+              <p>Dữ liệu này sẽ được khớp với tên cửa hàng trong sheet</p>
+            </div>
+          </div>
+          <div style="overflow-x: auto; margin-top: 15px;">
+            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+              <thead>
+                <tr style="background: #f8f9fa;">
+                  <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Tên Chiến Dịch</th>
+                  <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Trạng Thái</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Clicks</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Chi Phí</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        campaigns.slice(0, 5).forEach((campaign, index) => {
+          const rowClass =
+            index % 2 === 0 ? "" : 'style="background: #f8f9fa;"';
+          html += `
+            <tr ${rowClass}>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed;">${
+                campaign.campaignName
+              }</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed;">
+                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; 
+                       background: ${
+                         campaign.status === "ENABLED" ? "#d4edda" : "#f8d7da"
+                       }; 
+                       color: ${
+                         campaign.status === "ENABLED" ? "#155724" : "#721c24"
+                       };">
+                  ${campaign.status}
+                </span>
+              </td>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed; text-align: right;">${campaign.totalClicks.toLocaleString(
+                "vi-VN"
+              )}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed; text-align: right;">$${campaign.totalCost.toFixed(
+                2
+              )}</td>
+            </tr>
+          `;
+        });
+
+        if (campaigns.length > 5) {
+          html += `<tr><td colspan="4" style="padding: 12px; border-bottom: 1px solid #e1e8ed; text-align: center; font-style: italic; color: #6c757d;">... và ${
+            campaigns.length - 5
+          } chiến dịch khác</td></tr>`;
+        }
+
+        html += "</tbody></table></div>";
+        container.innerHTML = html;
+      }
+
+      function addNewConfigSheetUrl() {
+        const container = document.getElementById("newConfigSheetUrls");
+        const newItem = document.createElement("div");
+        newItem.className = "url-pair";
+        newItem.innerHTML = `
+          <div class="form-row">
+            <input type="url" placeholder="https://docs.google.com/spreadsheets/d/.../edit" class="sheet-url" />
+            <button type="button" class="btn btn-icon remove-url-pair" onclick="removeSheetUrl(this)" title="Xóa URL này">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+        `;
+        container.appendChild(newItem);
+      }
+
+      function removeSheetUrl(button) {
+        button.closest(".url-pair").remove();
+      }
+
+      async function saveNewConfiguration() {
+        if (!selectedCustomerId) {
+          showAlert("Vui lòng chọn tài khoản trước", "error");
+          return;
+        }
+
+        const sheetUrls = Array.from(
+          document.querySelectorAll("#newConfigSheetUrls .sheet-url")
+        )
+          .map((input) => input.value.trim())
+          .filter((url) => url);
+
+        if (sheetUrls.length === 0) {
+          showAlert("Vui lòng thêm ít nhất một URL sheet", "error");
+          return;
+        }
+
+        const syncInterval = document.getElementById(
+          "newConfigSyncInterval"
+        ).value;
+
+        try {
+          showLoading(true);
+          const response = await fetch("/api/google-ads/configure", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              customerId: selectedCustomerId,
+              customerName: selectedCustomerName,
+              sheetUrls: sheetUrls,
+              syncInterval: syncInterval,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert("Cấu hình đã được lưu thành công!", "success");
+            cancelNewConfiguration();
+            loadConfiguration();
+          } else {
+            throw new Error(data.error || "Không thể lưu cấu hình");
+          }
+        } catch (error) {
+          showAlert("Lỗi khi lưu cấu hình: " + error.message, "error");
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      async function syncAccount(customerId) {
+        try {
+          showAlert("Đang bắt đầu đồng bộ...", "info");
+          showLoading(true);
+
+          const response = await fetch(
+            `/api/google-ads/sync-single/${customerId}`,
+            {
+              method: "POST",
+            }
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert(
+              `Tài khoản ${customerId} đã được đồng bộ thành công!`,
+              "success"
+            );
+            loadConfiguration();
+          } else {
+            throw new Error(data.error || "Đồng bộ thất bại");
+          }
+        } catch (error) {
+          showAlert("Lỗi khi đồng bộ tài khoản: " + error.message, "error");
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      async function removeConfig(customerId) {
+        if (
+          !confirm(
+            `Bạn có chắc chắn muốn xóa cấu hình cho tài khoản ${customerId}?`
+          )
+        ) {
+          return;
+        }
+
+        try {
+          showLoading(true);
+          const response = await fetch(`/api/google-ads/config/${customerId}`, {
+            method: "DELETE",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showAlert("Cấu hình đã được xóa thành công!", "success");
+            loadConfiguration();
+          } else {
+            throw new Error(data.error || "Không thể xóa cấu hình");
+          }
+        } catch (error) {
+          showAlert("Lỗi khi xóa cấu hình: " + error.message, "error");
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function editConfig(customerId) {
+        showAlert(
+          "Tính năng chỉnh sửa sẽ sớm có! Hiện tại vui lòng xóa và thêm lại.",
+          "info"
+        );
+      }
+
+      async function syncAllAccounts() {
+        try {
+          showAlert("Đang bắt đầu đồng bộ tất cả tài khoản...", "info");
+          showLoading(true);
+
+          const response = await fetch("/api/google-ads/sync-all", {
+            method: "POST",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            const successCount = data.results.filter((r) => r.success).length;
+            const totalCount = data.results.length;
+
+            showAlert(
+              `Đồng bộ hoàn tất! ${successCount}/${totalCount} tài khoản được đồng bộ thành công.`,
+              "success"
+            );
+            displaySyncAllResults(data.results);
+            loadConfiguration();
+          } else {
+            throw new Error(data.error || "Đồng bộ thất bại");
+          }
+        } catch (error) {
+          showAlert(
+            "Lỗi khi đồng bộ tất cả tài khoản: " + error.message,
+            "error"
+          );
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function displaySyncAllResults(results) {
+        document.getElementById("syncResultsSection").style.display = "block";
+        const container = document.getElementById("syncResults");
+
+        let resultHtml = `
+          <div class="status-item">
+            <i class="fas fa-chart-bar" style="color: #28a745;"></i>
+            <div>
+              <strong>Tóm Tắt Kết Quả Đồng Bộ</strong>
+              <p>Chi tiết kết quả đồng bộ cho từng tài khoản</p>
+            </div>
+          </div>
+          <div style="overflow-x: auto; margin-top: 15px;">
+            <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+              <thead>
+                <tr style="background: #f8f9fa;">
+                  <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Tài Khoản</th>
+                  <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Trạng Thái</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Sheets Cập Nhật</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e1e8ed; font-weight: 600;">Records Khớp</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        results.forEach((result, index) => {
+          const rowClass =
+            index % 2 === 0 ? "" : 'style="background: #f8f9fa;"';
+          const statusClass = result.success ? "#28a745" : "#dc3545";
+          const statusBg = result.success ? "#d4edda" : "#f8d7da";
+          const statusText = result.success ? "Thành công" : "Thất bại";
+
+          resultHtml += `
+            <tr ${rowClass}>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed;">
+                <strong>${result.customerName || result.customerId}</strong>
+                <br><small style="color: #6c757d;">${result.customerId}</small>
+              </td>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed; text-align: center;">
+                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; background: ${statusBg}; color: ${statusClass};">
+                  ${statusText}
+                </span>
+              </td>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed; text-align: right;">${
+                result.sheetsUpdated || 0
+              }</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e1e8ed; text-align: right;">${
+                result.totalMatched || 0
+              }</td>
+            </tr>
+          `;
+        });
+
+        resultHtml += `
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        container.innerHTML = resultHtml;
+      }
+
+      function showAlert(message, type) {
+        const container = document.getElementById("alertContainer");
+        const alert = document.createElement("div");
+
+        const icons = {
+          success: "fas fa-check-circle",
+          error: "fas fa-exclamation-circle",
+          info: "fas fa-info-circle",
+          warning: "fas fa-exclamation-triangle",
+        };
+
+        const colors = {
+          success: "#28a745",
+          error: "#dc3545",
+          info: "#17a2b8",
+          warning: "#ffc107",
+        };
+
+        alert.className = `status-item`;
+        alert.style.marginBottom = "15px";
+        alert.style.borderLeftColor = colors[type];
+        alert.innerHTML = `
+          <i class="${icons[type]}" style="color: ${colors[type]};"></i>
+          <div>
+            <strong>${message}</strong>
+            <p style="margin: 0; font-size: 14px; opacity: 0.8;">
+              ${new Date().toLocaleTimeString("vi-VN")}
+            </p>
+          </div>
+        `;
+
+        container.appendChild(alert);
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          if (alert.parentNode) {
+            alert.remove();
+          }
+        }, 5000);
+      }
+
+      function showLoading(show) {
+        const overlay = document.getElementById("loading-overlay");
+        if (show) {
+          overlay.style.display = "flex";
+        } else {
+          overlay.style.display = "none";
+        }
+      }
+    </script>
+  </body>
+</html>

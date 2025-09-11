@@ -11,6 +11,7 @@ const StorageService = require('./services/storageService');
 
 // Import routers
 const reportsRouter = require('./routes/reports');
+const googleAdsRouter = require('./routes/googleAds');
 
 // Load environment variables
 dotenv.config();
@@ -38,8 +39,13 @@ app.get('/reports.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'reports.html'));
 });
 
+app.get('/google-ads.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'google-ads.html'));
+});
+
 // Use routers
 app.use('/api/reports', reportsRouter);
+app.use('/api/google-ads', googleAdsRouter);
 
 // API Routes
 app.post('/api/configure', async (req, res) => {
@@ -741,6 +747,106 @@ async function generateDailyReport() {
     }
 }
 
+// Background job to sync Google Ads data
+async function syncGoogleAdsData() {
+    try {
+        console.log('Starting scheduled Google Ads sync...');
+
+        const config = await storageService.getConfig();
+
+        if (!config?.googleAds || Object.keys(config.googleAds).length === 0) {
+            console.log('No Google Ads accounts configured, skipping sync');
+            return;
+        }
+
+        const GoogleAdsService = require('./services/googleAdsService');
+        const googleAdsService = new GoogleAdsService();
+
+        let totalSynced = 0;
+        let totalErrors = 0;
+
+        for (const [customerId, adsConfig] of Object.entries(config.googleAds)) {
+            try {
+                // Check if this account should be synced based on interval
+                const shouldSync = checkSyncInterval(adsConfig);
+
+                if (!shouldSync) {
+                    console.log(`Skipping sync for account ${customerId} - not due for sync`);
+                    continue;
+                }
+
+                console.log(`Syncing Google Ads account: ${adsConfig.customerName} (${customerId})`);
+
+                // Get campaign data (using service account)
+                const campaigns = await googleAdsService.getAggregatedCampaignData(
+                    customerId,
+                    'LAST_7_DAYS'
+                );
+
+                // Sync each configured sheet
+                for (const sheetUrl of adsConfig.sheetUrls) {
+                    try {
+                        await googleSheetsService.initAuth();
+                        const sheetData = await googleSheetsService.getDataFromSheet(sheetUrl);
+                        const matchedData = await googleAdsService.matchCampaignWithStoreData(campaigns, sheetData);
+
+                        if (matchedData.length > 0) {
+                            // Update sheet with ads data
+                            const { updateSheetWithAdsData } = require('./services/googleAdsHelpers');
+                            await updateSheetWithAdsData(sheetUrl, matchedData, googleSheetsService);
+                            console.log(`Updated ${matchedData.length} records in sheet: ${sheetUrl}`);
+                        }
+                    } catch (sheetError) {
+                        console.error(`Error syncing sheet ${sheetUrl}:`, sheetError.message);
+                        totalErrors++;
+                    }
+                }
+
+                // Update last sync time
+                config.googleAds[customerId].lastSync = new Date().toISOString();
+                totalSynced++;
+
+            } catch (accountError) {
+                console.error(`Error syncing account ${customerId}:`, accountError.message);
+                totalErrors++;
+            }
+        }
+
+        // Save updated config with last sync times
+        if (totalSynced > 0) {
+            config.lastUpdated = new Date().toISOString();
+            await storageService.saveConfig(config);
+        }
+
+        console.log(`Google Ads sync completed. Accounts synced: ${totalSynced}, Errors: ${totalErrors}`);
+
+    } catch (error) {
+        console.error('Error in scheduled Google Ads sync:', error);
+    }
+}
+
+// Helper function to check if account should be synced based on interval
+function checkSyncInterval(adsConfig) {
+    if (!adsConfig.lastSync || adsConfig.syncInterval === 'manual') {
+        return false;
+    }
+
+    const lastSync = new Date(adsConfig.lastSync);
+    const now = new Date();
+    const hoursSinceLastSync = (now - lastSync) / (1000 * 60 * 60);
+
+    switch (adsConfig.syncInterval) {
+        case 'hourly':
+            return hoursSinceLastSync >= 1;
+        case 'daily':
+            return hoursSinceLastSync >= 24;
+        case 'weekly':
+            return hoursSinceLastSync >= (24 * 7);
+        default:
+            return false;
+    }
+}
+
 // Schedule the job to run every 5 minutes
 const pollingInterval = process.env.POLLING_INTERVAL || 5;
 cron.schedule(`*/${pollingInterval} * * * *`, checkForChanges);
@@ -751,11 +857,17 @@ cron.schedule('59 16 * * *', generateDailyReport, {
     timezone: 'UTC'
 });
 
+// Schedule Google Ads sync every hour
+cron.schedule('0 * * * *', syncGoogleAdsData, {
+    timezone: 'UTC'
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Polling interval: ${pollingInterval} minutes`);
     console.log('Daily report scheduled for 11:59 PM UTC+7 (end of day)');
+    console.log('Google Ads sync scheduled every hour');
 });
 
 // Graceful shutdown
