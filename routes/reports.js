@@ -440,6 +440,7 @@ function processDataByStore(rawData, targetDate) {
     const clicks = parseDataNumber(row[15] || "0");
     const commission = parseDataNumber(row[16] || "0");
     const benefit = parseDataNumber(row[17] || "0");
+    const runner = row[12] || "";
     if (!storeData[storeName]) {
       storeData[storeName] = {
         records: [],
@@ -447,6 +448,7 @@ function processDataByStore(rawData, targetDate) {
         totalClicks: 0,
         totalCommission: 0,
         totalBenefit: 0,
+        runner: ""
       };
     }
     storeData[storeName].records.push({
@@ -454,11 +456,14 @@ function processDataByStore(rawData, targetDate) {
       spend,
       clicks,
       commission,
+      benefit,
+      runner
     });
     storeData[storeName].totalSpend += spend;
     storeData[storeName].totalClicks += clicks;
     storeData[storeName].totalCommission += commission;
     storeData[storeName].totalBenefit += benefit;
+    storeData[storeName].runner = runner;
   });
 
   Object.keys(storeData).forEach((storeName) => {
@@ -499,6 +504,9 @@ async function writeReportToSheet(
       spreadsheet.sheets?.find((sheet) => sheet.properties?.sheetId == gid)
         ?.properties?.title || "Sheet1";
 
+    // Ensure we have a valid numeric sheet ID
+    const numericSheetId = gid ? parseInt(gid, 10) : 0;
+    
     console.log("Report data structure:");
     console.log("Date:", targetDate);
     console.log("Stores:", Object.keys(reportData).length);
@@ -531,12 +539,12 @@ async function writeReportToSheet(
       .filter(Boolean)
       .filter((storeName) => storeName !== "TỔNG" && storeName !== "TỔNG CỘNG");
 
-    // Find the next available column (looking for groups of 5 columns: B-F, G-K, L-P, etc.)
+    // Find the next available column (looking for groups of 6 columns: B-G, H-M, N-S, etc.)
     let nextColumnStart = "B"; // Start from column B
     let colIndex = 1; // B = index 1
 
     if (existingData.length > 0) {
-      // Find the first empty group of 5 columns (4 data + 1 change column)
+      // Find the first empty group of 6 columns (4 data + 1 change column + 1 runner column)
       const maxColumns = 100; // Allow up to column CV (100 columns should be enough)
       while (colIndex < maxColumns) {
         const col1 = getColumnLetter(colIndex);
@@ -553,7 +561,7 @@ async function writeReportToSheet(
           nextColumnStart = col1;
           break;
         }
-        colIndex += 5; // Move to next group of 5 columns
+        colIndex += 6; // Move to next group of 6 columns
       }
     }
 
@@ -567,7 +575,7 @@ async function writeReportToSheet(
 
     // Calculate required dimensions
     const requiredRows = Math.max(stores.length + 3, 10); // +3 for header rows + summary row, minimum 10
-    const requiredColumns = getColumnIndex(nextColumnStart) + 5; // 5 columns for this report
+    const requiredColumns = getColumnIndex(nextColumnStart) + 6; // 6 columns for this report
 
     console.log(
       `Required dimensions: ${requiredRows} rows, ${requiredColumns} columns`
@@ -577,7 +585,7 @@ async function writeReportToSheet(
     try {
       await googleSheetsService.ensureSheetSize(
         spreadsheetId,
-        gid || 0,
+        numericSheetId,
         requiredRows,
         requiredColumns
       );
@@ -591,8 +599,8 @@ async function writeReportToSheet(
     // Prepare the data to write
     const dataToWrite = [];
 
-    // Row 1: Date (merged across 5 columns) - we'll put the date in the first column
-    dataToWrite.push([targetDate, "", "", "", ""]);
+    // Row 1: Date (merged across 6 columns) - we'll put the date in the first column
+    dataToWrite.push([targetDate, "", "", "", "", ""]);
 
     // Row 2: Headers
     dataToWrite.push([
@@ -601,6 +609,7 @@ async function writeReportToSheet(
       "CĐ",
       "Tiền Hoa Hồng ($)",
       "Trạng thái",
+      "Người chạy"
     ]);
 
     // Calculate totals first
@@ -630,6 +639,7 @@ async function writeReportToSheet(
       totalCommission,
       totalBenefit,
       "",
+      ""
     ]);
 
     // Rows 4+: Store data with change calculation
@@ -638,7 +648,7 @@ async function writeReportToSheet(
       const previousStoreData = previousData[storeName];
 
       if (!storeData) {
-        dataToWrite.push(["", "", "", "", ""]);
+        dataToWrite.push(["", "", "", "", "", ""]);
       } else {
         // Calculate changes from previous report
         let changeIndicator = "Mới"; // Default for new stores
@@ -664,6 +674,7 @@ async function writeReportToSheet(
             totalCommission: storeData.totalCommission,
             totalBenefit: storeData.totalBenefit,
             changeIndicator,
+            runner: storeData.runner
           });
         }
 
@@ -673,6 +684,7 @@ async function writeReportToSheet(
           storeData.totalCommission,
           storeData.totalBenefit,
           changeIndicator,
+          storeData.runner
         ]);
       }
     });
@@ -697,7 +709,7 @@ async function writeReportToSheet(
     );
 
     // Write the report data starting from the determined column
-    const endCol = getColumnLetter(getColumnIndex(nextColumnStart) + 4); // 5 columns total (0-4)
+    const endCol = getColumnLetter(getColumnIndex(nextColumnStart) + 5); // 6 columns total (0-5)
     const dataRange = `${sheetName}!${nextColumnStart}1:${endCol}${dataToWrite.length}`;
 
     console.log(`Writing data to range: ${dataRange}`);
@@ -707,16 +719,19 @@ async function writeReportToSheet(
       dataToWrite
     );
 
-    // Merge the date header cells (row 1, columns across 5 columns)
+    // Merge the date header cells (row 1, columns across 6 columns)
     const startColIndex = getColumnIndex(nextColumnStart); // Convert column letter to index (A=0, B=1, etc.)
-    const endColIndex = startColIndex + 5; // Merge 5 columns
+    const endColIndex = startColIndex + 6; // Merge 6 columns
 
     try {
+      // Add debug information to help diagnose the issue
+      console.log(`Attempting to merge cells: Sheet ID: ${numericSheetId}, Row range: 0-1, Column range: ${startColIndex}-${endColIndex}`);
+      
       await googleSheetsService.mergeCells(
         spreadsheetId,
-        gid || 0, // Use GID if available, otherwise default sheet (0)
+        numericSheetId, // Use validated numeric sheet ID
         0, // Start row index (row 1 = index 0)
-        1, // End row index (row 1 = index 1, exclusive)
+        1, // End row index (row 2 = index 1, exclusive)
         startColIndex, // Start column index
         endColIndex, // End column index (exclusive)
         "MERGE_ALL"
@@ -756,7 +771,7 @@ async function writeReportToSheet(
       // Apply borders to data columns (from row 2 onwards, all data rows)
       await googleSheetsService.formatCells(
         spreadsheetId,
-        gid || 0,
+        numericSheetId,
         1, // Start from row 2 (headers)
         dataToWrite.length, // End at the last data row
         startColIndex, // Start column index
@@ -798,7 +813,7 @@ async function writeReportToSheet(
 
       await googleSheetsService.formatCells(
         spreadsheetId,
-        gid || 0,
+        numericSheetId,
         1, // Row 2 (headers)
         2, // End at row 2 (exclusive)
         startColIndex, // Start column index
@@ -810,7 +825,7 @@ async function writeReportToSheet(
       if (nextColumnStart === "B") {
         await googleSheetsService.formatCells(
           spreadsheetId,
-          gid || 0,
+          numericSheetId,
           1, // Start from row 2 (headers)
           dataToWrite.length, // End at the last data row
           0, // Column A (index 0)
@@ -860,7 +875,7 @@ async function writeReportToSheet(
       // Apply summary formatting to both data columns and store name column
       await googleSheetsService.formatCells(
         spreadsheetId,
-        gid || 0,
+        numericSheetId,
         summaryRowIndex, // Summary row
         summaryRowIndex + 1, // End at summary row (exclusive)
         startColIndex, // Start column index
@@ -872,7 +887,7 @@ async function writeReportToSheet(
       if (nextColumnStart === "B") {
         await googleSheetsService.formatCells(
           spreadsheetId,
-          gid || 0,
+          numericSheetId,
           summaryRowIndex, // Summary row
           summaryRowIndex + 1, // End at summary row (exclusive)
           0, // Column A (index 0)
@@ -889,7 +904,7 @@ async function writeReportToSheet(
       try {
         await googleSheetsService.autoFitColumns(
           spreadsheetId,
-          gid || 0,
+          numericSheetId,
           0, // Start from column A
           endColIndex // End at the last column used
         );
@@ -907,6 +922,7 @@ async function writeReportToSheet(
       console.warn(
         `Warning: Could not merge cells for date header: ${mergeError.message}`
       );
+      console.warn(`Merge details: Sheet: ${numericSheetId}, Row: 0-1, Columns: ${startColIndex}-${endColIndex}`);
       // Continue execution even if merge fails
     }
 
