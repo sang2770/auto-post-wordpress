@@ -1084,6 +1084,9 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       ]);
     }
 
+    // Track the first row where we add date data for later creating row groupings
+    const dateRowStart = dataToWrite.length + nextRow;
+    
     // Row for date with overall totals
     dataToWrite.push([
       targetDate,
@@ -1191,8 +1194,8 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       }
 
       // Apply borders to pair data rows (after the total rows)
-      const pairRowsStartIndex = existingData.length === 0 ? 2 : startRow - 1; // Start from pair rows (after total row)
-      const pairRowsEndIndex = pairRowsStartIndex + summaryData.length + 1;
+      const pairRowsStartIndex = existingData.length === 0 ? 2 : nextRow + 1; // Start from pair rows (after total row)
+      const pairRowsEndIndex = pairRowsStartIndex + dataToWrite.length;
 
       if (summaryData.length > 0) {
         const borderFormat = {
@@ -1233,6 +1236,31 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           7, // End column G (exclusive)
           borderFormat
         );
+      }
+
+      // Create row grouping for the current date section
+      if (summaryData.length > 0) {
+        try {
+          // Get the index of the date total row and the last detail row for this date
+          const dateRowIndex = dateRowStart;
+          const lastDetailRowIndex = dateRowStart + summaryData.length;
+          
+          // Only add row grouping if we have detail rows
+          if (lastDetailRowIndex > dateRowIndex) {
+            // Add row grouping
+            await googleSheetsService.addRowGrouping(
+              spreadsheetId,
+              gid || 0,
+              dateRowIndex, // The date total row (parent row)
+              dateRowIndex + 1, // First detail row
+              lastDetailRowIndex + 2 // Last detail row
+            );
+            
+            console.log(`Created row grouping for date ${targetDate} from rows ${dateRowIndex + 1} to ${lastDetailRowIndex}`);
+          }
+        } catch (groupingError) {
+          console.warn(`Warning: Could not create row grouping: ${groupingError.message}`);
+        }
       }
 
       // Auto-fit columns

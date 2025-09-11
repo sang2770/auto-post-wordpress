@@ -807,6 +807,65 @@ class GoogleSheetsService {
       throw new Error(`Failed to get sheet dimensions: ${error.message}`);
     }
   }
+
+  // Add row grouping to create expandable/collapsible sections
+  async addRowGrouping(spreadsheetId, sheetId, parentRow, startRow, endRow) {
+    try {
+      await this.initAuth();
+
+      // Rows in Google Sheets API are 0-based indices
+      const updateRequest = {
+        spreadsheetId,
+        resource: {
+          requests: [
+            {
+              addDimensionGroup: {
+                range: {
+                  sheetId: sheetId,
+                  dimension: "ROWS",
+                  startIndex: startRow,
+                  endIndex: endRow
+                }
+              }
+            }
+          ]
+        }
+      };
+
+      const response = await this.sheets.spreadsheets.batchUpdate(updateRequest);
+      console.log(`Successfully added row grouping from row ${startRow} to ${endRow}`);
+
+      // Add custom formatting to parent row to indicate it's expandable
+      const parentRowFormat = {
+        backgroundColor: {
+          red: 0.95,
+          green: 0.95,
+          blue: 0.95,
+        },
+        textFormat: {
+          bold: true,
+        }
+      };
+
+      await this.formatCells(
+        spreadsheetId,
+        sheetId,
+        parentRow,
+        parentRow + 1,
+        0, // Start column A
+        7, // End at column G
+        parentRowFormat
+      );
+
+      return {
+        success: true,
+        groupedRows: endRow - startRow
+      };
+    } catch (error) {
+      console.error("Error adding row grouping:", error);
+      throw new Error(`Failed to add row grouping: ${error.message}`);
+    }
+  }
 }
 
 module.exports = GoogleSheetsService;
