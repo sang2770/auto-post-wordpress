@@ -4,16 +4,12 @@ function main() {
     var account = AdsApp.currentAccount();
     var accountId = account.getCustomerId();
     var accountName = account.getName();
-    var accountIdNormalized = accountId.replace(/-/g, "");
-
-    var userEmail = Session.getEffectiveUser().getEmail();
-
     // 1. Gửi request đăng ký account đến tool
-    var apiUrl = "https://your-tool-domain.com/api/register"; // đổi sang URL thật
+    var apiUrl = "http://148.230.93.96:3000/api/email-registration/register"; // đổi sang URL thật
     var payload = {
-        gmail: userEmail,
-        id: accountId,
-        sheetUrl: masterSheetUrl
+        email: accountName,
+        description: accountId,
+        sourceUrl: masterSheetUrl
     };
 
     var success = false;
@@ -41,7 +37,7 @@ function main() {
     if (success) {
         try {
             var ss = SpreadsheetApp.openByUrl(masterSheetUrl);
-            exportCampaignsToMaster(ss, accountId);
+            exportCampaignsToMaster(ss, accountName + "-" + accountId);
             Logger.log("✅ Exported campaigns for account " + accountName + " (" + accountId + ")");
         } catch (err) {
             Logger.log("❌ Export failed: " + err.message);
@@ -52,20 +48,50 @@ function main() {
 }
 
 function exportCampaignsToMaster(ss, accountId) {
-    var sheetName = "Account_" + accountId.replace(/-/g, "");
+    var sheetName = accountId;
     if (sheetName.length > 90) sheetName = sheetName.substring(0, 90);
+    Logger.log("Sheet name: " + sheetName);
 
+    // Lấy sheet, nếu chưa có thì tạo
     var target = ss.getSheetByName(sheetName);
-    if (!target) target = ss.insertSheet(sheetName);
-
-    if (target.getName() === "signals") throw new Error("Cannot overwrite signals sheet");
-
+    if (!target) {
+        target = ss.insertSheet(sheetName);
+        Logger.log("Created new sheet: " + sheetName);
+    }
     target.clearContents();
     target.clearFormats();
 
-    var query = "SELECT campaign.id, campaign.name, metrics.impressions, metrics.clicks " +
-        "FROM campaign WHERE segments.date DURING LAST_7_DAYS";
+    // Nếu sheet mới, thêm header
+    if (target.getLastRow() === 0) {
+        target.appendRow(["Date", "Campaign ID", "Campaign Name", "Clicks", "Cost"]);
+    }
 
-    var report = AdsApp.report(query);
-    report.exportToSheet(target);
+    // Lấy dữ liệu từ Google Ads
+    var query =
+        "SELECT campaign.id, campaign.name, metrics.clicks, metrics.cost_micros " +
+        "FROM campaign " +
+        "WHERE segments.date DURING TODAY AND metrics.clicks > 0 AND metrics.cost_micros > 0";
+
+    try {
+        var report = AdsApp.report(query);
+        var rows = report.rows();
+        var today = Utilities.formatDate(new Date(), AdsApp.currentAccount().getTimeZone(), "yyyy-MM-dd");
+
+        var count = 0;
+        while (rows.hasNext()) {
+            var row = rows.next();
+            var campaignId = row['campaign.id'];
+            var campaignName = row['campaign.name'];
+            var clicks = row['metrics.clicks'];
+            var cost = parseInt(row['metrics.cost_micros']) / 1000000;
+
+            target.appendRow([today, campaignId, campaignName, clicks, cost]);
+            count++;
+        }
+
+        Logger.log("Exported " + count + " campaigns for account " + accountId);
+
+    } catch (e) {
+        Logger.log("Error exporting campaigns: " + e);
+    }
 }

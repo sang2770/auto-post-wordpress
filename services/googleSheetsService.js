@@ -520,6 +520,33 @@ class GoogleSheetsService {
     }
   }
 
+  // Batch update multiple ranges in Google Sheets
+  async batchUpdateSheetValues(spreadsheetId, updates) {
+    try {
+      await this.initAuth();
+
+      const response = await this.sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        resource: {
+          valueInputOption: 'RAW',
+          data: updates
+        }
+      });
+
+      console.log(`Successfully batch updated ${updates.length} ranges`);
+      return response.data;
+    } catch (error) {
+      console.error("Error batch updating sheet values:", error);
+      if (error.code === 403) {
+        throw new Error(`Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has editor access to the sheet.`);
+      }
+      if (error.code === 400) {
+        throw new Error(`Invalid range or data format: ${error.message}`);
+      }
+      throw new Error(`Failed to batch update sheet values: ${error.message}`);
+    }
+  }
+
   // Append data to a sheet (insert new columns to the right)
   async appendSheetValues(spreadsheetId, range, values) {
     try {

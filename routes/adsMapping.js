@@ -122,58 +122,7 @@ router.post('/config', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });// Preview mapping for a group (multiple sources to one destination)
-router.post('/preview-group', async (req, res) => {
-    try {
-        const { sourceUrls, destinationUrl, storeColumn, clicksColumn, moneyColumn } = req.body;
 
-        if (!sourceUrls || !Array.isArray(sourceUrls) || sourceUrls.length === 0 || !destinationUrl) {
-            return res.status(400).json({
-                error: 'Source URLs array and destination URL are required'
-            });
-        }
-
-        // Read and combine data from all source URLs
-        let combinedAdsData = [];
-
-        for (const sourceUrl of sourceUrls) {
-            try {
-                const adsData = await adsMappingService.readAdsReportData(sourceUrl);
-                combinedAdsData = combinedAdsData.concat(adsData);
-            } catch (error) {
-                console.warn(`Failed to read from source ${sourceUrl}: ${error.message}`);
-            }
-        }
-
-        if (combinedAdsData.length === 0) {
-            return res.json({
-                success: true,
-                preview: {
-                    sourceDataCount: 0,
-                    matchingStores: 0,
-                    preview: [],
-                    totalPreview: 0
-                }
-            });
-        }
-
-        const preview = await adsMappingService.previewMappingWithData(
-            combinedAdsData,
-            destinationUrl,
-            storeColumn || 'A',
-            clicksColumn || 'D',
-            moneyColumn || 'E'
-        );
-
-        res.json({
-            success: true,
-            preview
-        });
-
-    } catch (error) {
-        console.error('Error creating group mapping preview:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
 
 // Test connection to group sheets (multiple sources + one destination)
 router.post('/test-group-connection', async (req, res) => {
@@ -246,11 +195,6 @@ router.post('/execute', async (req, res) => {
     try {
         const config = await storageService.getConfig();
         const mappingGroups = config?.adsMappingGroups;
-        const globalColumns = config?.adsGlobalColumns || {
-            storeColumn: 'A',
-            clicksColumn: 'D',
-            moneyColumn: 'E'
-        };
 
         if (!mappingGroups || mappingGroups.length === 0) {
             return res.status(400).json({
@@ -265,9 +209,9 @@ router.post('/execute', async (req, res) => {
 
         let results;
         if (hasEmailBasedGroups) {
-            results = await adsMappingService.processGroupMappingsWithEmails(mappingGroups, globalColumns);
+            results = await adsMappingService.processGroupMappingsWithEmails(mappingGroups);
         } else {
-            results = await adsMappingService.processGroupMappings(mappingGroups, globalColumns);
+            results = await adsMappingService.processGroupMappings(mappingGroups);
         }
 
         // Update last execution time

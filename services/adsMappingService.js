@@ -2,6 +2,9 @@ const GoogleSheetsService = require('./googleSheetsService');
 const EmailRegistrationService = require('./emailRegistrationService');
 
 class AdsMappingService {
+    defaultStoreNameColumn = 'D';
+    defaultClicksColumn = 'P';
+    defaultMoneyColumn = 'O';
     constructor() {
         this.googleSheetsService = new GoogleSheetsService();
         this.emailRegistrationService = new EmailRegistrationService();
@@ -9,51 +12,53 @@ class AdsMappingService {
 
     /**
      * Read Google Ads report data from source sheet
-     * Expected structure from Google Ads script:
-     * Column A: campaign.id
-     * Column B: campaign.name (store name)
-     * Column C: metrics.impressions
-     * Column D: metrics.clicks
      */
-    async readAdsReportData(sourceSheetUrl, sourceRange = 'A:D') {
+    async readAdsReportData(sourceSheetUrl, sourceRange = 'A:E') {
         try {
             console.log(`Reading ads report data from: ${sourceSheetUrl}`);
 
             const sheetId = this.googleSheetsService.extractSheetId(sourceSheetUrl);
+            const gid = this.googleSheetsService.extractGid(sourceSheetUrl);
             if (!sheetId) {
                 throw new Error('Invalid source sheet URL');
             }
-
-            await this.googleSheetsService.initAuth();
-
-            const response = await this.googleSheetsService.sheets.spreadsheets.values.get({
-                spreadsheetId: sheetId,
-                range: sourceRange,
-            });
-
-            if (!response.data.values || response.data.values.length === 0) {
-                throw new Error('No data found in source sheet');
+            let rangeToRead = sourceRange;
+            if (gid && gid !== "0") {
+                // Get sheet info to find the sheet name by GID
+                await this.googleSheetsService.initAuth();
+                const spreadsheet = await this.googleSheetsService.sheets.spreadsheets.get({ spreadsheetId: sheetId });
+                const sheetInfo = spreadsheet.data.sheets.find(s => s.properties.sheetId.toString() === gid);
+                if (sheetInfo) {
+                    rangeToRead = `${sheetInfo.properties.title}!${sourceRange}`;
+                }
             }
 
-            const rows = response.data.values;
+            // Use GoogleSheetsService method instead of direct API call
+            const rows = await this.googleSheetsService.readSheetValues(sheetId, rangeToRead);
+
+            if (!rows || rows.length === 0) {
+                throw new Error('No data found in source sheet');
+            }
+            console.log(`Total rows fetched: ${rows.length}`);
+
             const data = [];
 
             // Skip header row if exists
-            const startIndex = this.hasHeader(rows) ? 1 : 0;
+            const startIndex = 1;
 
             for (let i = startIndex; i < rows.length; i++) {
                 const row = rows[i];
-                if (row.length >= 4) {
-                    const campaignId = row[0]?.toString().trim();
-                    const storeName = row[1]?.toString().trim();
-                    const impressions = this.parseNumber(row[2]);
+                if (row.length >= 5) {
+                    const campaignId = row[1]?.toString().trim();
+                    const storeName = row[2]?.toString().trim().replace(/\s*-\s*[\d.]+$/, '');
+                    const money = this.parseNumber(row[4]);
                     const clicks = this.parseNumber(row[3]);
 
-                    if (storeName && (clicks > 0 || impressions > 0)) {
+                    if (storeName && (clicks > 0 || money > 0)) {
                         data.push({
                             campaignId,
                             storeName,
-                            impressions,
+                            money,
                             clicks,
                             rowIndex: i + 1
                         });
@@ -74,7 +79,7 @@ class AdsMappingService {
      * Map ads data to destination sheet based on store name matching
      * Find rows in destination where store name matches and update clicks/money columns
      */
-    async mapDataToDestination(adsData, destinationSheetUrl, storeNameColumn = 'A', clicksColumn = 'D', moneyColumn = 'E') {
+    async mapDataToDestination(adsData, destinationSheetUrl, storeNameColumn = this.defaultStoreNameColumn, clicksColumn = this.defaultClicksColumn, moneyColumn = this.defaultMoneyColumn) {
         try {
             console.log(`Mapping data to destination: ${destinationSheetUrl}`);
 
@@ -85,59 +90,49 @@ class AdsMappingService {
 
             await this.googleSheetsService.initAuth();
 
-            // First, read the destination sheet to find matching stores
-            const readResponse = await this.googleSheetsService.sheets.spreadsheets.values.get({
-                spreadsheetId: sheetId,
-                range: `${storeNameColumn}:${moneyColumn}`,
-            });
+            // First, read the destination sheet to find matching stores using GoogleSheetsService method
+            const destinationRows = await this.googleSheetsService.readSheetValues(sheetId, `${storeNameColumn}:${moneyColumn}`);
 
-            if (!readResponse.data.values || readResponse.data.values.length === 0) {
+            if (!destinationRows || destinationRows.length === 0) {
                 throw new Error('No data found in destination sheet');
             }
-
-            const destinationRows = readResponse.data.values;
             const updates = [];
-            const startIndex = this.hasHeader(destinationRows) ? 1 : 0;
+            const startIndex = 1;
 
             // Create a map of store names to ads data for quick lookup
             const adsDataMap = new Map();
             adsData.forEach(item => {
                 const normalizedStoreName = this.normalizeStoreName(item.storeName);
                 if (!adsDataMap.has(normalizedStoreName)) {
-                    adsDataMap.set(normalizedStoreName, { clicks: 0, impressions: 0 });
+                    adsDataMap.set(normalizedStoreName, { clicks: 0, money: 0 });
                 }
                 const existing = adsDataMap.get(normalizedStoreName);
                 existing.clicks += item.clicks;
-                existing.impressions += item.impressions;
+                existing.money += item.money;
             });
 
             // Find matching rows and prepare updates
             for (let i = startIndex; i < destinationRows.length; i++) {
                 const row = destinationRows[i];
-                if (row.length > 0) {
-                    const destinationStoreName = row[0]?.toString().trim();
-                    const normalizedDestName = this.normalizeStoreName(destinationStoreName);
+                if (!row.length) continue;
+                const destinationStoreName = row[0]?.toString().trim();
+                const normalizedDestName = this.normalizeStoreName(destinationStoreName);
 
-                    if (adsDataMap.has(normalizedDestName)) {
-                        const adsInfo = adsDataMap.get(normalizedDestName);
-                        const rowNumber = i + 1;
+                if (adsDataMap.has(normalizedDestName)) {
+                    const adsInfo = adsDataMap.get(normalizedDestName);
+                    const rowNumber = i + 1;
 
-                        // Add update for clicks column
-                        updates.push({
-                            range: `${clicksColumn}${rowNumber}`,
-                            values: [[adsInfo.clicks]]
-                        });
-
-                        // Calculate money (you can adjust this formula based on your business logic)
-                        // For now, using clicks * 1000 as example (adjust as needed)
-                        const money = adsInfo.clicks * 1000;
-                        updates.push({
-                            range: `${moneyColumn}${rowNumber}`,
-                            values: [[money]]
-                        });
-
-                        console.log(`Mapped ${destinationStoreName}: ${adsInfo.clicks} clicks, ${money} money`);
-                    }
+                    // Add update for clicks column
+                    updates.push({
+                        range: `${clicksColumn}${rowNumber}`,
+                        values: [[adsInfo.clicks]]
+                    });
+                    const money = adsInfo.money;
+                    updates.push({
+                        range: `${moneyColumn}${rowNumber}`,
+                        values: [[money]]
+                    });
+                    adsDataMap.set(normalizedDestName, { clicks: "", money: "" });
                 }
             }
 
@@ -149,14 +144,8 @@ class AdsMappingService {
                 };
             }
 
-            // Batch update the destination sheet
-            await this.googleSheetsService.sheets.spreadsheets.values.batchUpdate({
-                spreadsheetId: sheetId,
-                resource: {
-                    valueInputOption: 'RAW',
-                    data: updates
-                }
-            });
+            // Batch update the destination sheet using GoogleSheetsService method
+            await this.googleSheetsService.batchUpdateSheetValues(sheetId, updates);
 
             return {
                 success: true,
@@ -187,10 +176,7 @@ class AdsMappingService {
                 // Map to destination
                 const mappingResult = await this.mapDataToDestination(
                     adsData,
-                    pair.destinationUrl,
-                    pair.storeNameColumn || 'A',
-                    pair.clicksColumn || 'D',
-                    pair.moneyColumn || 'E'
+                    pair.destinationUrl
                 );
 
                 results.push({
@@ -218,7 +204,7 @@ class AdsMappingService {
      * Process multiple groups for ads data mapping  
      * Each group has one destination and multiple sources
      */
-    async processGroupMappings(mappingGroups, globalColumns) {
+    async processGroupMappings(mappingGroups) {
         const results = [];
 
         for (const group of mappingGroups) {
@@ -263,9 +249,9 @@ class AdsMappingService {
                 const mappingResult = await this.mapDataToDestination(
                     combinedAdsData,
                     group.destinationUrl,
-                    globalColumns.storeColumn,
-                    globalColumns.clicksColumn,
-                    globalColumns.moneyColumn
+                    // globalColumns.storeColumn,
+                    // globalColumns.clicksColumn,
+                    // globalColumns.moneyColumn
                 );
 
                 results.push({
@@ -292,139 +278,6 @@ class AdsMappingService {
     }
 
     /**
-     * Preview mapping without actually updating data
-     */
-    async previewMapping(sourceUrl, destinationUrl) {
-        try {
-            const adsData = await this.readAdsReportData(sourceUrl);
-
-            // Read destination data for preview
-            const destSheetId = this.googleSheetsService.extractSheetId(destinationUrl);
-            await this.googleSheetsService.initAuth();
-
-            const destResponse = await this.googleSheetsService.sheets.spreadsheets.values.get({
-                spreadsheetId: destSheetId,
-                range: 'A:E',
-            });
-
-            const destinationRows = destResponse.data.values || [];
-            const startIndex = this.hasHeader(destinationRows) ? 1 : 0;
-
-            const preview = [];
-            const adsDataMap = new Map();
-
-            // Create ads data map
-            adsData.forEach(item => {
-                const normalizedStoreName = this.normalizeStoreName(item.storeName);
-                if (!adsDataMap.has(normalizedStoreName)) {
-                    adsDataMap.set(normalizedStoreName, { clicks: 0, impressions: 0 });
-                }
-                const existing = adsDataMap.get(normalizedStoreName);
-                existing.clicks += item.clicks;
-                existing.impressions += item.impressions;
-            });
-
-            // Find matches for preview
-            for (let i = startIndex; i < destinationRows.length; i++) {
-                const row = destinationRows[i];
-                if (row.length > 0) {
-                    const destinationStoreName = row[0]?.toString().trim();
-                    const normalizedDestName = this.normalizeStoreName(destinationStoreName);
-
-                    if (adsDataMap.has(normalizedDestName)) {
-                        const adsInfo = adsDataMap.get(normalizedDestName);
-                        preview.push({
-                            rowNumber: i + 1,
-                            storeName: destinationStoreName,
-                            currentClicks: row[3] || 0,
-                            newClicks: adsInfo.clicks,
-                            currentMoney: row[4] || 0,
-                            newMoney: adsInfo.clicks * 1000
-                        });
-                    }
-                }
-            }
-
-            return {
-                sourceDataCount: adsData.length,
-                matchingStores: preview.length,
-                preview: preview.slice(0, 10), // Limit preview to 10 items
-                totalPreview: preview.length
-            };
-
-        } catch (error) {
-            console.error('Error creating preview:', error);
-            throw new Error(`Failed to create preview: ${error.message}`);
-        }
-    }
-
-    /**
-     * Preview mapping with pre-loaded data (for group previews)
-     */
-    async previewMappingWithData(adsData, destinationUrl, storeNameColumn = 'A', clicksColumn = 'D', moneyColumn = 'E') {
-        try {
-            console.log(`Creating preview for destination: ${destinationUrl}`);
-
-            const destSheetId = this.googleSheetsService.extractSheetId(destinationUrl);
-            await this.googleSheetsService.initAuth();
-
-            const destResponse = await this.googleSheetsService.sheets.spreadsheets.values.get({
-                spreadsheetId: destSheetId,
-                range: `${storeNameColumn}:${moneyColumn}`,
-            });
-
-            const destinationRows = destResponse.data.values || [];
-            const startIndex = this.hasHeader(destinationRows) ? 1 : 0;
-
-            const preview = [];
-            const adsDataMap = new Map();
-
-            // Create ads data map
-            adsData.forEach(item => {
-                const normalizedStoreName = this.normalizeStoreName(item.storeName);
-                if (!adsDataMap.has(normalizedStoreName)) {
-                    adsDataMap.set(normalizedStoreName, { clicks: 0, impressions: 0 });
-                }
-                const existing = adsDataMap.get(normalizedStoreName);
-                existing.clicks += item.clicks;
-                existing.impressions += item.impressions;
-            });
-
-            // Find matches for preview
-            for (let i = startIndex; i < destinationRows.length; i++) {
-                const row = destinationRows[i];
-                if (row.length > 0) {
-                    const destinationStoreName = row[0]?.toString().trim();
-                    const normalizedDestName = this.normalizeStoreName(destinationStoreName);
-
-                    if (adsDataMap.has(normalizedDestName)) {
-                        const adsInfo = adsDataMap.get(normalizedDestName);
-                        preview.push({
-                            rowNumber: i + 1,
-                            storeName: destinationStoreName,
-                            currentClicks: this.getColumnValue(row, storeNameColumn, clicksColumn) || 0,
-                            newClicks: adsInfo.clicks,
-                            currentMoney: this.getColumnValue(row, storeNameColumn, moneyColumn) || 0,
-                            newMoney: adsInfo.clicks * 1000
-                        });
-                    }
-                }
-            }
-
-            return {
-                sourceDataCount: adsData.length,
-                matchingStores: preview.length,
-                preview: preview.slice(0, 10), // Limit preview to 10 items
-                totalPreview: preview.length
-            };
-
-        } catch (error) {
-            console.error('Error creating preview with data:', error);
-            throw new Error(`Failed to create preview: ${error.message}`);
-        }
-    }
-
-    /**
      * Helper to get column value based on column letter
      */
     getColumnValue(row, baseColumn, targetColumn) {
@@ -443,20 +296,6 @@ class AdsMappingService {
      */
     columnLetterToIndex(letter) {
         return letter.toUpperCase().charCodeAt(0) - 65;
-    }
-
-    /**
-     * Helper method to detect if first row is header
-     */
-    hasHeader(rows) {
-        if (!rows || rows.length === 0) return false;
-
-        const firstRow = rows[0];
-        // Check if first row contains typical header terms
-        const headerTerms = ['campaign', 'name', 'impression', 'click', 'id'];
-        const firstRowText = firstRow.join(' ').toLowerCase();
-
-        return headerTerms.some(term => firstRowText.includes(term));
     }
 
     /**
@@ -479,7 +318,7 @@ class AdsMappingService {
     /**
      * Process mapping groups using email-based configuration
      */
-    async processGroupMappingsWithEmails(groups, globalConfig) {
+    async processGroupMappingsWithEmails(groups) {
         const results = [];
 
         for (const group of groups) {
@@ -515,8 +354,7 @@ class AdsMappingService {
                         // Map to destination
                         const mappingResult = await this.mapDataToDestination(
                             sourceData,
-                            group.destinationUrl,
-                            globalConfig
+                            group.destinationUrl
                         );
 
                         groupResult.sourceResults.push({
@@ -550,60 +388,6 @@ class AdsMappingService {
         }
 
         return results;
-    }
-
-    /**
-     * Preview mapping with email-based configuration
-     */
-    async previewMappingWithEmails(groups, globalConfig) {
-        const preview = [];
-
-        for (const group of groups) {
-            const groupPreview = {
-                groupName: group.name,
-                destinationUrl: group.destinationUrl,
-                sources: [],
-                previewData: []
-            };
-
-            // Get source URLs from emails
-            const sourceUrls = await this.emailRegistrationService.getMultipleSourceUrls(group.sourceEmails);
-
-            for (const email of group.sourceEmails) {
-                const sourceUrl = sourceUrls[email];
-                if (!sourceUrl) {
-                    groupPreview.sources.push({
-                        email: email,
-                        error: 'Không tìm thấy source URL cho email này'
-                    });
-                    continue;
-                }
-
-                try {
-                    // Read first 5 rows for preview
-                    const sourceData = await this.readAdsReportData(sourceUrl);
-                    const previewRows = sourceData.slice(0, 6); // Header + 5 data rows
-
-                    groupPreview.sources.push({
-                        email: email,
-                        sourceUrl: sourceUrl,
-                        rowCount: sourceData.length - 1,
-                        previewData: previewRows
-                    });
-
-                } catch (error) {
-                    groupPreview.sources.push({
-                        email: email,
-                        sourceUrl: sourceUrl,
-                        error: error.message
-                    });
-                }
-            }
-
-            preview.push(groupPreview);
-        }
-
-        return preview;
     }
 
     /**
@@ -650,9 +434,13 @@ class AdsMappingService {
             testResult.sourceTests.push(sourceTest);
         }
 
-        // Test destination
+        // Test destination sheet accessibility
         try {
-            await this.googleSheetsService.getSheetData(group.destinationUrl);
+            const sheetId = this.googleSheetsService.extractSheetId(group.destinationUrl);
+            if (!sheetId) {
+                throw new Error('Invalid destination sheet URL');
+            }
+            await this.googleSheetsService.readSheetValues(sheetId, 'A1:A1');
         } catch (error) {
             testResult.isValid = false;
             testResult.errors.push(`Destination: ${error.message}`);

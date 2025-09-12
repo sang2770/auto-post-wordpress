@@ -493,7 +493,7 @@ async function testGroupConnection(index) {
     try {
         const destinationUrl = document.getElementById(`destination-url-${index}`)?.value?.trim();
         const groupContainer = document.getElementById(`mapping-group-${index}`);
-        const sourceEmails = groupContainer.querySelectorAll('.source-email');
+        const sourceEmails = Array.from(groupContainer.querySelectorAll('.source-email'));
         const sourceUrls = sourceEmails
             .map(select => {
                 const email = select.value?.trim();
@@ -593,36 +593,7 @@ function displayResults(results, summary) {
                 <li>Thời gian: ${new Date(summary.executedAt).toLocaleString('vi-VN')}</li>
             </ul>
         </div>
-        
-        <div class="results-details">
-            <h4>Chi Tiết:</h4>
     `;
-
-    results.forEach((result, index) => {
-        const status = result.success ? 'success' : 'error';
-        const icon = result.success ? 'fa-check-circle' : 'fa-times-circle';
-
-        html += `
-            <div class="result-item ${status}">
-                <h5><i class="fas ${icon}"></i> ${result.name}</h5>
-                <p><strong>Source:</strong> ${result.sourceUrl}</p>
-                <p><strong>Destination:</strong> ${result.destinationUrl}</p>
-        `;
-
-        if (result.success) {
-            html += `
-                <p><strong>Kết quả:</strong> ${result.result.message}</p>
-                <p><strong>Số stores cập nhật:</strong> ${result.result.updatedRows}</p>
-            `;
-            if (result.result.mappedStores && result.result.mappedStores.length > 0) {
-                html += `<p><strong>Stores:</strong> ${result.result.mappedStores.join(', ')}</p>`;
-            }
-        } else {
-            html += `<p><strong>Lỗi:</strong> ${result.error}</p>`;
-        }
-
-        html += `</div>`;
-    });
 
     html += '</div>';
 
