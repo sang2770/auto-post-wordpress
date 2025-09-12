@@ -4,12 +4,32 @@ function main() {
     var account = AdsApp.currentAccount();
     var accountId = account.getCustomerId();
     var accountName = account.getName();
-    // 1. Gửi request đăng ký account đến tool
-    var apiUrl = "http://148.230.93.96:3000/api/email-registration/register"; // đổi sang URL thật
+
+    // 1. Tạo sheet mới trước
+    var ss = SpreadsheetApp.openByUrl(masterSheetUrl);
+    var sheetName = accountName + "-" + accountId;
+    if (sheetName.length > 90) sheetName = sheetName.substring(0, 90);
+    Logger.log("Sheet name: " + sheetName);
+
+    var target = ss.getSheetByName(sheetName);
+    if (!target) {
+        target = ss.insertSheet(sheetName);
+        Logger.log("Created new sheet: " + sheetName);
+    }
+    target.clearContents();
+    target.clearFormats();
+    target.appendRow(["Date", "Campaign ID", "Campaign Name", "Clicks", "Cost"]);
+
+    // Lấy URL hoặc ID sheet mới tạo (nếu cần)
+    var sheetUrl = masterSheetUrl + "#gid=" + target.getSheetId();
+    Logger.log("Sheet URL to register: " + sheetUrl);
+
+    // 2. Gọi API đăng ký account
+    var apiUrl = "http://148.230.93.96:3000/api/email-registration/register";
     var payload = {
         email: accountName,
         description: accountId,
-        sourceUrl: masterSheetUrl
+        sourceUrl: sheetUrl
     };
 
     var success = false;
@@ -28,11 +48,10 @@ function main() {
         Logger.log("API call failed: " + e.message);
     }
 
-    // 2. Nếu API success thì export campaigns
+    // 3. Nếu API success thì export campaigns
     if (success) {
         try {
-            var ss = SpreadsheetApp.openByUrl(masterSheetUrl);
-            exportCampaignsToMaster(ss, accountName + "-" + accountId);
+            exportCampaignsToMaster(target);
             Logger.log("✅ Exported campaigns for account " + accountName + " (" + accountId + ")");
         } catch (err) {
             Logger.log("❌ Export failed: " + err.message);
@@ -42,26 +61,7 @@ function main() {
     }
 }
 
-function exportCampaignsToMaster(ss, accountId) {
-    var sheetName = accountId;
-    if (sheetName.length > 90) sheetName = sheetName.substring(0, 90);
-    Logger.log("Sheet name: " + sheetName);
-
-    // Lấy sheet, nếu chưa có thì tạo
-    var target = ss.getSheetByName(sheetName);
-    if (!target) {
-        target = ss.insertSheet(sheetName);
-        Logger.log("Created new sheet: " + sheetName);
-    }
-    target.clearContents();
-    target.clearFormats();
-
-    // Nếu sheet mới, thêm header
-    if (target.getLastRow() === 0) {
-        target.appendRow(["Date", "Campaign ID", "Campaign Name", "Clicks", "Cost"]);
-    }
-
-    // Lấy dữ liệu từ Google Ads
+function exportCampaignsToMaster(target) {
     var query =
         "SELECT campaign.id, campaign.name, metrics.clicks, metrics.cost_micros " +
         "FROM campaign " +
@@ -84,7 +84,7 @@ function exportCampaignsToMaster(ss, accountId) {
             count++;
         }
 
-        Logger.log("Exported " + count + " campaigns for account " + accountId);
+        Logger.log("Exported " + count + " campaigns for sheet " + target.getName());
 
     } catch (e) {
         Logger.log("Error exporting campaigns: " + e);
