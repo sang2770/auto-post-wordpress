@@ -191,6 +191,29 @@
             </div>
           </div> -->
 
+          <!-- Global Dollar Price Configuration -->
+          <div class="form-group">
+            <h3><i class="fas fa-dollar-sign"></i> Cấu Hình Tỷ Giá</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="global-dollar-price">Giá USD (VNĐ):</label>
+                <input
+                  type="number"
+                  id="global-dollar-price"
+                  value="23000"
+                  placeholder="23000"
+                  step="100"
+                  min="1"
+                  required
+                />
+                <small
+                  >Tỷ giá USD/VNĐ để chuyển đổi chi phí (áp dụng cho tất cả
+                  groups)</small
+                >
+              </div>
+            </div>
+          </div>
+
           <!-- Destination Groups Configuration -->
           <div class="form-group">
             <h3 style="margin-bottom: 10px">
@@ -233,6 +256,7 @@
                   />
                   <small>Sheet đích để fill dữ liệu cho group này</small>
                 </div>
+
                 <!-- Source Emails for this destination -->
                 <div class="source-emails-section">
                   <h5><i class="fas fa-database"></i> Chọn Emails Nguồn:</h5>
@@ -382,9 +406,10 @@
       function copyCodeToClipboard() {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           // HTTPS hoặc localhost
-          navigator.clipboard.writeText(code)
-            .then(() => console.log('Copied to clipboard'))
-            .catch(err => console.error('Failed to copy:', err));
+          navigator.clipboard
+            .writeText(code)
+            .then(() => console.log("Copied to clipboard"))
+            .catch((err) => console.error("Failed to copy:", err));
         } else {
           // Fallback cho HTTP
           const textarea = document.createElement("textarea");
@@ -401,7 +426,6 @@
           document.body.removeChild(textarea);
         }
       }
-
     </script>
   </body>
 </html>

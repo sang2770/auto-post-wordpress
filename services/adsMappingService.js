@@ -1,6 +1,6 @@
 const GoogleSheetsService = require('./googleSheetsService');
 const EmailRegistrationService = require('./emailRegistrationService');
-
+const StorageService = require('../services/storageService');
 class AdsMappingService {
     defaultStoreNameColumn = 'D';
     defaultClicksColumn = 'P';
@@ -8,12 +8,13 @@ class AdsMappingService {
     constructor() {
         this.googleSheetsService = new GoogleSheetsService();
         this.emailRegistrationService = new EmailRegistrationService();
+        this.storageService = new StorageService();
     }
 
     /**
      * Read Google Ads report data from source sheet
      */
-    async readAdsReportData(sourceSheetUrl, sourceRange = 'A:E') {
+    async readAdsReportData(sourceSheetUrl, sourceRange = 'A:F') {
         try {
             console.log(`Reading ads report data from: ${sourceSheetUrl}`);
 
@@ -48,11 +49,15 @@ class AdsMappingService {
 
             for (let i = startIndex; i < rows.length; i++) {
                 const row = rows[i];
+
                 if (row.length >= 5) {
                     const campaignId = row[1]?.toString().trim();
-                    const storeName = row[2]?.toString().trim().replace(/\s*-\s*[\d.]+$/, '');
-                    const money = this.parseNumber(row[4]);
+                    const storeName = row[2]?.toString().trim()
+                        .replace(/\s*-\s*[\d.]+$/, '')  // Remove existing pattern like " - 12.8"
+                        .replace(/\s+[\d.]+$/, '');     // Remove pattern like " 12.8"
+                    const money = this.parseNumber(row[4].replace(/,/g, '.'));
                     const clicks = this.parseNumber(row[3]);
+                    const unitMoney = row[5]?.toString().trim().toLowerCase();
 
                     if (storeName && (clicks > 0 || money > 0)) {
                         data.push({
@@ -60,6 +65,7 @@ class AdsMappingService {
                             storeName,
                             money,
                             clicks,
+                            unitMoney,
                             rowIndex: i + 1
                         });
                     }
@@ -82,7 +88,8 @@ class AdsMappingService {
     async mapDataToDestination(adsData, destinationSheetUrl, storeNameColumn = this.defaultStoreNameColumn, clicksColumn = this.defaultClicksColumn, moneyColumn = this.defaultMoneyColumn) {
         try {
             console.log(`Mapping data to destination: ${destinationSheetUrl}`);
-
+            const config = await this.storageService.getConfig();
+            const dollarPrice = config?.dollarPrice || 1;
             const sheetId = this.googleSheetsService.extractSheetId(destinationSheetUrl);
             const gid = this.googleSheetsService.extractGid(destinationSheetUrl);
             if (!sheetId) {
@@ -119,7 +126,7 @@ class AdsMappingService {
             adsData.forEach(item => {
                 const normalizedStoreName = this.normalizeStoreName(item.storeName);
                 if (!adsDataMap.has(normalizedStoreName)) {
-                    adsDataMap.set(normalizedStoreName, { clicks: 0, money: 0 });
+                    adsDataMap.set(normalizedStoreName, { clicks: 0, money: 0, unitMoney: item.unitMoney });
                 }
                 const existing = adsDataMap.get(normalizedStoreName);
                 existing.clicks += item.clicks;
@@ -141,9 +148,14 @@ class AdsMappingService {
                     // Add update for clicks column
                     updates.push({
                         range: `${destinationSheetName}!${clicksColumn}${rowNumber}`,
-                        values: [[adsInfo.clicks]]
+                        values: [[adsInfo.clicks + this.parseNumber(this.getColumnValue(row, storeNameColumn, clicksColumn) || 0)]]
                     });
-                    const money = adsInfo.money;
+                    const moneyData = this.parseNumber(this.getColumnValue(row, storeNameColumn, moneyColumn) || 0);
+                    let money = adsInfo.money + moneyData;
+                    if (adsInfo.unitMoney && adsInfo.unitMoney.toLowerCase() === 'usd') {
+                        console.log(`Converting USD to local currency for store: ${normalizedDestName}, original money: ${money}, rate: ${dollarPrice}`);
+                        money = adsInfo.money * dollarPrice + moneyData;
+                    }
                     updates.push({
                         range: `${destinationSheetName}!${moneyColumn}${rowNumber}`,
                         values: [[money]]

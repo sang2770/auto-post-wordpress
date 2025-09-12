@@ -454,6 +454,11 @@ function getGlobalColumns() {
 // Save mapping configuration
 async function saveMappingConfig() {
     try {
+        const dollarPrice = document.getElementById('global-dollar-price')?.value?.trim();
+        if (!dollarPrice || isNaN(dollarPrice) || Number(dollarPrice) <= 0) {
+            showStatus('Vui lòng nhập tỷ giá USD hợp lệ (số lớn hơn 0)', 'error');
+            return;
+        }
         const groups = collectMappingGroups();
         const globalColumns = getGlobalColumns();
 
@@ -471,7 +476,8 @@ async function saveMappingConfig() {
             },
             body: JSON.stringify({
                 mappingGroups: groups,
-                globalColumns: globalColumns
+                globalColumns: globalColumns,
+                dollarPrice: Number(dollarPrice)
             })
         });
 

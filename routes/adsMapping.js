@@ -19,6 +19,7 @@ router.get('/config', async (req, res) => {
                 clicksColumn: 'D',
                 moneyColumn: 'E'
             },
+            dollarPrice: config?.dollarPrice || 23000,
             configured: !!(config?.adsMappingGroups && config?.adsMappingGroups.length > 0)
         });
     } catch (error) {
@@ -30,7 +31,7 @@ router.get('/config', async (req, res) => {
 // Configure ads mapping groups
 router.post('/config', async (req, res) => {
     try {
-        const { mappingGroups, globalColumns } = req.body;
+        const { mappingGroups, globalColumns, dollarPrice } = req.body;
 
         if (!mappingGroups || !Array.isArray(mappingGroups) || mappingGroups.length === 0) {
             return res.status(400).json({
@@ -110,6 +111,7 @@ router.post('/config', async (req, res) => {
         config.adsMappingGroups = validatedGroups;
         config.adsGlobalColumns = validatedColumns;
         config.adsMappingConfiguredAt = new Date().toISOString();
+        config.dollarPrice = dollarPrice;
         await storageService.saveConfig(config);
 
         res.json({
