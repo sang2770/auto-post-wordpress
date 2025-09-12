@@ -350,7 +350,13 @@
             </ul> -->
 
             <h4>Google Ads Script Mẫu:</h4>
-            <pre><code id="code"></code></pre>
+            <button
+              id="copy-code-btn"
+              class="btn btn-secondary btn-sm"
+              onclick="copyCodeToClipboard()"
+            >
+              <i class="fas fa-copy"></i> Copy
+            </button>
           </div>
         </section>
       </main>
@@ -358,16 +364,28 @@
 
     <script src="ads-mapping.js"></script>
     <script>
+      let code = "";
       // Load demo.js content into the code block
       fetch("demo.js")
         .then((response) => response.text())
         .then((text) => {
-          document.getElementById("code").textContent = text;
+          code = text;
+          document.getElementById("code").textContent = code;
         })
         .catch((err) => {
           document.getElementById("code").textContent =
             "Không thể tải scripts.js";
         });
+
+      function copyCodeToClipboard() {
+        navigator.clipboard.writeText(code).then(() => {
+          const btn = document.getElementById("copy-code-btn");
+          btn.textContent = "Đã copy!";
+          setTimeout(() => {
+            btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+          }, 1500);
+        });
+      }
     </script>
   </body>
 </html>
