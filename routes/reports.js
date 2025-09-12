@@ -463,7 +463,9 @@ function processDataByStore(rawData, targetDate) {
     storeData[storeName].totalClicks += clicks;
     storeData[storeName].totalCommission += commission;
     storeData[storeName].totalBenefit += benefit;
-    storeData[storeName].runner = runner;
+    if (!storeData[storeName].runner && runner) {
+      storeData[storeName].runner = runner;
+    }
   });
 
   Object.keys(storeData).forEach((storeName) => {
