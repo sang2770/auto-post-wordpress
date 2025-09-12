@@ -1,5 +1,5 @@
 function main() {
-    var masterSheetUrl = "https://docs.google.com/spreadsheets/d/1FPj7hBdSQDoLMdTV3Nq5Vx3qWf4cDGOR6SpQrO3teBQ/edit";
+    var masterSheetUrl = "https://docs.google.com/spreadsheets/d/1tcEJcndxBGIDHCnUTI1Z7BfeLPDmX11SaYxabm2riIk/edit?usp=sharing";
 
     var account = AdsApp.currentAccount();
     var accountId = account.getCustomerId();
@@ -23,12 +23,7 @@ function main() {
 
         var respText = response.getContentText();
         Logger.log("API response: " + respText);
-
-        var respJson = {};
-        try { respJson = JSON.parse(respText); } catch (e) { }
-        if (respJson.status && respJson.status === "success") {
-            success = true;
-        }
+        success = true;
     } catch (e) {
         Logger.log("API call failed: " + e.message);
     }

@@ -340,53 +340,34 @@
         <section class="card">
           <h2><i class="fas fa-question-circle"></i> Hướng Dẫn Sử Dụng</h2>
           <div class="help-content">
-            <h4>Cấu Trúc Dữ Liệu Google Ads Report (Sheet Nguồn):</h4>
+            <!-- <h4>Cấu Trúc Dữ Liệu Google Ads Report (Sheet Nguồn):</h4>
             <p>Sheet nguồn cần có cấu trúc sau (từ Google Ads script):</p>
             <ul>
               <li><strong>Cột A:</strong> campaign.id</li>
               <li><strong>Cột B:</strong> campaign.name (tên store)</li>
               <li><strong>Cột C:</strong> metrics.impressions</li>
               <li><strong>Cột D:</strong> metrics.clicks</li>
-            </ul>
+            </ul> -->
 
             <h4>Google Ads Script Mẫu:</h4>
-            <pre><code>function main() {
-  var ssUrl = "PASTE_SHEET_URL_CỦA_BẠN";
-  var sheet = SpreadsheetApp.openByUrl(ssUrl).getActiveSheet();
-  sheet.clear();
-  var report = AdsApp.report(
-    "SELECT campaign.id, campaign.name, metrics.impressions, metrics.clicks " +
-    "FROM campaign WHERE segments.date DURING TODAY"
-  );
-  report.exportToSheet(sheet);
-}</code></pre>
-
-            <h4>Cách Thức Hoạt Động:</h4>
-            <ol>
-              <li>Cấu hình cột chung cho tất cả sheet đích</li>
-              <li>
-                Tạo các group, mỗi group có 1 sheet đích và nhiều sheet nguồn
-              </li>
-              <li>Hệ thống đọc dữ liệu từ tất cả sheet nguồn trong group</li>
-              <li>Gộp dữ liệu clicks theo tên store</li>
-              <li>Tìm kiếm tên store trong sheet đích và cập nhật</li>
-              <li>Money được tính bằng: clicks × 1000 (có thể điều chỉnh)</li>
-            </ol>
-
-            <h4>Lưu Ý:</h4>
-            <ul>
-              <li>Cột configuration áp dụng cho tất cả sheet đích</li>
-              <li>Một sheet đích có thể nhận dữ liệu từ nhiều sheet nguồn</li>
-              <li>Dữ liệu từ các source sẽ được gộp lại theo tên store</li>
-              <li>Tên store phải khớp giữa sheet nguồn và sheet đích</li>
-              <li>Service account cần có quyền truy cập vào tất cả sheet</li>
-              <li>Sử dụng "Test Kết Nối" để kiểm tra trước khi thực thi</li>
-            </ul>
+            <pre><code id="code"></code></pre>
           </div>
         </section>
       </main>
     </div>
 
     <script src="ads-mapping.js"></script>
+    <script>
+      // Load demo.js content into the code block
+      fetch("demo.js")
+        .then((response) => response.text())
+        .then((text) => {
+          document.getElementById("code").textContent = text;
+        })
+        .catch((err) => {
+          document.getElementById("code").textContent =
+            "Không thể tải scripts.js";
+        });
+    </script>
   </body>
 </html>
