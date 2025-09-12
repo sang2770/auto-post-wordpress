@@ -94,8 +94,8 @@ class AdsMappingService {
             if (gid && gid !== "0") {
                 // Get sheet info to find the sheet name by GID
                 await this.googleSheetsService.initAuth();
-                const spreadsheet = await this.googleSheetsService.sheets.spreadsheets.get({ spreadsheetId: sheetId });
-                const sheetInfo = spreadsheet.data.sheets.find(s => s.properties.sheetId.toString() === gid);
+                const spreadsheet = await this.googleSheetsService.getInfoSheetsFromUrl(destinationSheetUrl);
+                const sheetInfo = spreadsheet.sheets.find(s => s.properties.sheetId.toString() === gid);
                 if (sheetInfo) {
                     destinationSheetName = sheetInfo.properties.title;
                     rangeToRead = `${destinationSheetName}!${sourceRange}`;
@@ -105,6 +105,7 @@ class AdsMappingService {
             await this.googleSheetsService.initAuth();
 
             // First, read the destination sheet to find matching stores using GoogleSheetsService method
+
             const destinationRows = await this.googleSheetsService.readSheetValues(sheetId, rangeToRead);
 
             if (!destinationRows || destinationRows.length === 0) {

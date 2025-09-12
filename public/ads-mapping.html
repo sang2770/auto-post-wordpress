@@ -380,14 +380,28 @@
         });
 
       function copyCodeToClipboard() {
-        navigator.clipboard.writeText(code).then(() => {
-          const btn = document.getElementById("copy-code-btn");
-          btn.textContent = "Đã copy!";
-          setTimeout(() => {
-            btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
-          }, 1500);
-        });
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          // HTTPS hoặc localhost
+          navigator.clipboard.writeText(code)
+            .then(() => console.log('Copied to clipboard'))
+            .catch(err => console.error('Failed to copy:', err));
+        } else {
+          // Fallback cho HTTP
+          const textarea = document.createElement("textarea");
+          textarea.value = code;
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            document.execCommand("copy");
+            console.log("Copied to clipboard (fallback)");
+          } catch (err) {
+            console.error("Fallback copy failed", err);
+            window.prompt("Copy the code manually:", code);
+          }
+          document.body.removeChild(textarea);
+        }
       }
+
     </script>
   </body>
 </html>
