@@ -20,7 +20,13 @@ function main() {
         "Cost",
         "Currency"
     ]);
-
+    // Gọi API đăng ký
+    var sheetUrl = masterSheetUrl + "#gid=" + target.getSheetId();
+    var success = registerAccount(accountName, accountId, sheetUrl);
+    if (!success) {
+        Logger.log("⛔ Registration API failed for account " + accountName + " (" + accountId + ")");
+        return;
+    }
     try {
         // Nếu MCC thì duyệt account con
         var accountIterator = MccApp.accounts().get();
@@ -46,20 +52,13 @@ function processSingleAccount(account, target, masterSheetUrl) {
     var accountName = account.getName();
     Logger.log("▶ Processing account " + accountName + " (" + accountId + ")");
 
-    // Gọi API đăng ký
-    var sheetUrl = masterSheetUrl + "#gid=" + target.getSheetId();
-    var success = registerAccount(accountName, accountId, sheetUrl);
 
-    // Export campaigns nếu API success
-    if (success) {
-        try {
-            exportCampaignsToSheet(accountId, accountName, target);
-            Logger.log("✅ Exported campaigns for account " + accountName + " (" + accountId + ")");
-        } catch (err) {
-            Logger.log("❌ Export failed: " + err.message);
-        }
-    } else {
-        Logger.log("⛔ Skip export because register API failed.");
+
+    try {
+        exportCampaignsToSheet(accountId, accountName, target);
+        Logger.log("✅ Exported campaigns for account " + accountName + " (" + accountId + ")");
+    } catch (err) {
+        Logger.log("❌ Export failed: " + err.message);
     }
 }
 
