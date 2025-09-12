@@ -84,14 +84,28 @@ class AdsMappingService {
             console.log(`Mapping data to destination: ${destinationSheetUrl}`);
 
             const sheetId = this.googleSheetsService.extractSheetId(destinationSheetUrl);
+            const gid = this.googleSheetsService.extractGid(destinationSheetUrl);
             if (!sheetId) {
                 throw new Error('Invalid destination sheet URL');
+            }
+            const sourceRange = `${storeNameColumn}:${moneyColumn}`;
+            let rangeToRead = sourceRange;
+            let destinationSheetName = '';
+            if (gid && gid !== "0") {
+                // Get sheet info to find the sheet name by GID
+                await this.googleSheetsService.initAuth();
+                const spreadsheet = await this.googleSheetsService.sheets.spreadsheets.get({ spreadsheetId: sheetId });
+                const sheetInfo = spreadsheet.data.sheets.find(s => s.properties.sheetId.toString() === gid);
+                if (sheetInfo) {
+                    destinationSheetName = sheetInfo.properties.title;
+                    rangeToRead = `${destinationSheetName}!${sourceRange}`;
+                }
             }
 
             await this.googleSheetsService.initAuth();
 
             // First, read the destination sheet to find matching stores using GoogleSheetsService method
-            const destinationRows = await this.googleSheetsService.readSheetValues(sheetId, `${storeNameColumn}:${moneyColumn}`);
+            const destinationRows = await this.googleSheetsService.readSheetValues(sheetId, rangeToRead);
 
             if (!destinationRows || destinationRows.length === 0) {
                 throw new Error('No data found in destination sheet');
@@ -109,6 +123,8 @@ class AdsMappingService {
                 const existing = adsDataMap.get(normalizedStoreName);
                 existing.clicks += item.clicks;
                 existing.money += item.money;
+                console.log(`Mapping store: ${normalizedStoreName}, clicks: ${existing.clicks}, money: ${existing.money}`);
+
             });
 
             // Find matching rows and prepare updates
@@ -121,15 +137,14 @@ class AdsMappingService {
                 if (adsDataMap.has(normalizedDestName)) {
                     const adsInfo = adsDataMap.get(normalizedDestName);
                     const rowNumber = i + 1;
-
                     // Add update for clicks column
                     updates.push({
-                        range: `${clicksColumn}${rowNumber}`,
+                        range: `${destinationSheetName}!${clicksColumn}${rowNumber}`,
                         values: [[adsInfo.clicks]]
                     });
                     const money = adsInfo.money;
                     updates.push({
-                        range: `${moneyColumn}${rowNumber}`,
+                        range: `${destinationSheetName}!${moneyColumn}${rowNumber}`,
                         values: [[money]]
                     });
                     adsDataMap.set(normalizedDestName, { clicks: "", money: "" });
@@ -365,6 +380,7 @@ class AdsMappingService {
 
                         groupResult.totalMatched += mappingResult.matchedRows;
                         groupResult.totalUpdated += mappingResult.updatedCells;
+                        groupResult.success = true;
 
                     } catch (sourceError) {
                         console.error(`Error processing source ${email}:`, sourceError);

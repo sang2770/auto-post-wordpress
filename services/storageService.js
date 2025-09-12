@@ -34,11 +34,7 @@ class StorageService {
             const data = await fs.readFile(this.configFile, 'utf8');
             return JSON.parse(data);
         } catch (error) {
-            if (error.code === 'ENOENT') {
-                return null; // File doesn't exist
-            }
-            console.error('Error reading config:', error);
-            throw error;
+            return {}
         }
     }
 

@@ -98,13 +98,15 @@ router.post('/config', async (req, res) => {
 
         // Validate global columns
         const validatedColumns = {
-            storeColumn: globalColumns?.storeColumn || 'A',
-            clicksColumn: globalColumns?.clicksColumn || 'D',
-            moneyColumn: globalColumns?.moneyColumn || 'E'
+            storeColumn: globalColumns?.storeColumn || 'D',
+            clicksColumn: globalColumns?.clicksColumn || 'P',
+            moneyColumn: globalColumns?.moneyColumn || 'O'
         };
 
         // Save configuration
         const config = await storageService.getConfig();
+        console.log('Saving ads mapping configuration:', config);
+
         config.adsMappingGroups = validatedGroups;
         config.adsGlobalColumns = validatedColumns;
         config.adsMappingConfiguredAt = new Date().toISOString();
