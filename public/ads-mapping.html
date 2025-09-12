@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ads Mapping - Auto Store Creator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .form-group label {
+        font-size: 14px;
+      }
+
+      small {
+        font-size: 8px;
+        color: #666;
+      }
+
+      .btn-danger {
+        background-color: #dc3545;
+        color: white;
+      }
+
+      .email-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #f9f9f9;
+      }
+
+      .email-item select {
+        flex: 1;
+      }
+
+      .email-info {
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+      }
+
+      .registration-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+
+      .source-email {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin: 10px 0;
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <h1><i class="fas fa-ad"></i> Ads Mapping - Auto Store Creator</h1>
+        <p>Map Google Ads report data to destination sheets by store name</p>
+        <div class="navigation">
+          <a href="/" class="nav-link">
+            <i class="fas fa-home"></i> Trang Chủ
+          </a>
+          <a href="/reports.html" class="nav-link">
+            <i class="fas fa-chart-bar"></i> Báo Cáo
+          </a>
+          <a href="/ads-mapping.html" class="nav-link active">
+            <i class="fas fa-ad"></i> Ads Mapping
+          </a>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <!-- Email Registration Section -->
+        <section class="card registration-section">
+          <h2><i class="fas fa-user-plus"></i> Quản Lý Email Đăng Ký</h2>
+
+          <div class="form-group">
+            <h4>Đăng Ký Email Mới:</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="register-email">Email:</label>
+                <input
+                  type="email"
+                  id="register-email"
+                  placeholder="example@gmail.com"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="register-source-url">Source URL:</label>
+                <input
+                  type="url"
+                  id="register-source-url"
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label for="register-description">Mô Tả:</label>
+                <input
+                  type="text"
+                  id="register-description"
+                  placeholder="Mô tả cho sheet này..."
+                />
+              </div>
+              <div class="form-group">
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick="registerEmail()"
+                  style="margin-top: 24px"
+                >
+                  <i class="fas fa-plus"></i> Đăng Ký
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <h4>Danh Sách Email Đã Đăng Ký:</h4>
+            <div id="registered-emails-list">
+              <!-- Will be populated by JavaScript -->
+            </div>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick="loadRegisteredEmails()"
+            >
+              <i class="fas fa-sync"></i> Tải Lại Danh Sách
+            </button>
+          </div>
+        </section>
+
+        <!-- Ads Mapping Section -->
+        <section class="card" id="ads-mapping-section">
+          <h2><i class="fas fa-ad"></i> Google Ads Data Mapping</h2>
+
+          <!-- Global Column Configuration
+          <div class="form-group">
+            <h3><i class="fas fa-cog"></i> Cấu Hình Cột (Global)</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="global-store-column">Cột Tên Store (Đích):</label>
+                <input
+                  type="text"
+                  id="global-store-column"
+                  value="A"
+                  placeholder="A"
+                  maxlength="2"
+                />
+                <small>Cột chứa tên store trong tất cả sheet đích</small>
+              </div>
+              <div class="form-group">
+                <label for="global-clicks-column">Cột Clicks (Đích):</label>
+                <input
+                  type="text"
+                  id="global-clicks-column"
+                  value="D"
+                  placeholder="D"
+                  maxlength="2"
+                />
+                <small>Cột để điền số clicks trong tất cả sheet đích</small>
+              </div>
+              <div class="form-group">
+                <label for="global-money-column">Cột Money (Đích):</label>
+                <input
+                  type="text"
+                  id="global-money-column"
+                  value="E"
+                  placeholder="E"
+                  maxlength="2"
+                />
+                <small>Cột để điền số tiền trong tất cả sheet đích</small>
+              </div>
+            </div>
+          </div> -->
+
+          <!-- Destination Groups Configuration -->
+          <div class="form-group">
+            <h3 style="margin-bottom: 10px">
+              <i class="fas fa-link"></i> Cấu Hình Mapping Groups
+            </h3>
+            <div id="mapping-groups-container">
+              <div class="mapping-group" id="mapping-group-0">
+                <div class="mapping-group-header">
+                  <h4>Group 1</h4>
+                  <button
+                    type="button"
+                    class="btn btn-danger btn-sm remove-group"
+                    onclick="removeMappingGroup(this)"
+                    style="display: none"
+                  >
+                    <i class="fas fa-trash"></i> Xóa Group
+                  </button>
+                </div>
+
+                <div class="form-group">
+                  <label for="group-name-0">Tên Group:</label>
+                  <input
+                    type="text"
+                    id="group-name-0"
+                    class="group-name"
+                    placeholder="Ví dụ: Main Store Group"
+                    required
+                  />
+                  <small>Tên để phân biệt các group mapping</small>
+                </div>
+
+                <div class="form-group">
+                  <label for="destination-url-0">URL Sheet Đích:</label>
+                  <input
+                    type="url"
+                    id="destination-url-0"
+                    class="destination-url"
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    required
+                  />
+                  <small>Sheet đích để fill dữ liệu cho group này</small>
+                </div>
+                <!-- Source Emails for this destination -->
+                <div class="source-emails-section">
+                  <h5><i class="fas fa-database"></i> Chọn Emails Nguồn:</h5>
+                  <div class="source-emails-container" id="source-emails-0">
+                    <div class="source-email-item">
+                      <div class="form-row">
+                        <div class="form-group" style="flex: 1">
+                          <select class="source-email" required>
+                            <option value="">-- Chọn email nguồn --</option>
+                            <!-- Will be populated by JavaScript -->
+                          </select>
+                          <small
+                            >Chọn email đã đăng ký từ Google Ads script</small
+                          >
+                        </div>
+                        <div class="form-group" style="flex: 0 0 auto">
+                          <button
+                            type="button"
+                            class="btn btn-danger btn-sm remove-source"
+                            onclick="removeSourceEmail(this)"
+                            style="display: none; margin-top: 24px"
+                          >
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    style="margin-bottom: 10px"
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    onclick="addSourceEmail(0)"
+                  >
+                    <i class="fas fa-plus"></i> Thêm Email Nguồn
+                  </button>
+                </div>
+
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="testGroupConnection(0)"
+                  >
+                    <i class="fas fa-plug"></i> Test Kết Nối
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onclick="addMappingGroup()"
+              >
+                <i class="fas fa-plus"></i> Thêm Group
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                onclick="saveMappingConfig()"
+              >
+                <i class="fas fa-save"></i> Lưu Cấu Hình
+              </button>
+            </div>
+          </div>
+          <!-- Execution Section -->
+          <div class="form-group">
+            <div class="form-actions">
+              <button
+                type="button"
+                class="btn btn-success"
+                onclick="executeAllMappings()"
+                id="execute-all-btn"
+              >
+                <i class="fas fa-play"></i> Thực Thi Tất Cả Groups
+              </button>
+              <button
+                type="button"
+                class="btn btn-info"
+                onclick="loadMappingHistory()"
+              >
+                <i class="fas fa-history"></i> Xem Lịch Sử
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Section -->
+          <div id="status-section" class="status-section" style="display: none">
+            <h3><i class="fas fa-info-circle"></i> Trạng Thái</h3>
+            <div id="status-content" style="margin-top: 10px"></div>
+          </div>
+
+          <!-- Preview Section -->
+          <div
+            id="preview-section"
+            class="preview-section"
+            style="display: none"
+          >
+            <h3><i class="fas fa-eye"></i> Xem Trước Mapping</h3>
+            <div id="preview-content"></div>
+          </div>
+
+          <!-- Results Section -->
+          <div
+            id="results-section"
+            class="results-section"
+            style="display: none"
+          >
+            <h3><i class="fas fa-chart-line"></i> Kết Quả Thực Thi</h3>
+            <div id="results-content"></div>
+          </div>
+        </section>
+
+        <!-- Help Section -->
+        <section class="card">
+          <h2><i class="fas fa-question-circle"></i> Hướng Dẫn Sử Dụng</h2>
+          <div class="help-content">
+            <h4>Cấu Trúc Dữ Liệu Google Ads Report (Sheet Nguồn):</h4>
+            <p>Sheet nguồn cần có cấu trúc sau (từ Google Ads script):</p>
+            <ul>
+              <li><strong>Cột A:</strong> campaign.id</li>
+              <li><strong>Cột B:</strong> campaign.name (tên store)</li>
+              <li><strong>Cột C:</strong> metrics.impressions</li>
+              <li><strong>Cột D:</strong> metrics.clicks</li>
+            </ul>
+
+            <h4>Google Ads Script Mẫu:</h4>
+            <pre><code>function main() {
+  var ssUrl = "PASTE_SHEET_URL_CỦA_BẠN";
+  var sheet = SpreadsheetApp.openByUrl(ssUrl).getActiveSheet();
+  sheet.clear();
+  var report = AdsApp.report(
+    "SELECT campaign.id, campaign.name, metrics.impressions, metrics.clicks " +
+    "FROM campaign WHERE segments.date DURING TODAY"
+  );
+  report.exportToSheet(sheet);
+}</code></pre>
+
+            <h4>Cách Thức Hoạt Động:</h4>
+            <ol>
+              <li>Cấu hình cột chung cho tất cả sheet đích</li>
+              <li>
+                Tạo các group, mỗi group có 1 sheet đích và nhiều sheet nguồn
+              </li>
+              <li>Hệ thống đọc dữ liệu từ tất cả sheet nguồn trong group</li>
+              <li>Gộp dữ liệu clicks theo tên store</li>
+              <li>Tìm kiếm tên store trong sheet đích và cập nhật</li>
+              <li>Money được tính bằng: clicks × 1000 (có thể điều chỉnh)</li>
+            </ol>
+
+            <h4>Lưu Ý:</h4>
+            <ul>
+              <li>Cột configuration áp dụng cho tất cả sheet đích</li>
+              <li>Một sheet đích có thể nhận dữ liệu từ nhiều sheet nguồn</li>
+              <li>Dữ liệu từ các source sẽ được gộp lại theo tên store</li>
+              <li>Tên store phải khớp giữa sheet nguồn và sheet đích</li>
+              <li>Service account cần có quyền truy cập vào tất cả sheet</li>
+              <li>Sử dụng "Test Kết Nối" để kiểm tra trước khi thực thi</li>
+            </ul>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="ads-mapping.js"></script>
+  </body>
+</html>

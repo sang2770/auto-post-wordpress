@@ -9,6 +9,14 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
+    <style>
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 20px;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+    </style>
   </head>
   <body>
     <div class="container">
@@ -22,6 +30,9 @@
           <a href="/reports.html" class="nav-link active">
             <i class="fas fa-chart-bar"></i> Báo Cáo
           </a>
+          <a href="/ads-mapping.html" class="nav-link">
+            <i class="fas fa-ad"></i> Ads Mapping
+          </a>
         </div>
       </header>
 
@@ -29,7 +40,7 @@
         <!-- Reports Section -->
         <section class="card" id="reports-section">
           <h2><i class="fas fa-chart-bar"></i> Báo Cáo</h2>
-          
+
           <!-- Report Configuration -->
           <div class="form-group">
             <h3><i class="fas fa-cog"></i> Cấu Hình Báo Cáo</h3>
@@ -45,7 +56,10 @@
                       placeholder="https://docs.google.com/spreadsheets/d/1ce70KkL6OBtU26uXODVLBz7BIkxMIDnXwWtiLza2eRY/edit?gid=0#gid=0"
                       required
                     />
-                    <small>URL để lấy dữ liệu cho báo cáo (cần có các cột: cửa hàng, ngày, chi phí chạy, click, hoa hồng)</small>
+                    <small
+                      >URL để lấy dữ liệu cho báo cáo (cần có các cột: cửa hàng,
+                      ngày, chi phí chạy, click, hoa hồng)</small
+                    >
                   </div>
                   <div class="form-group">
                     <label for="report-url-0">URL Sheet Báo Cáo:</label>
@@ -59,25 +73,34 @@
                     <small>URL nơi báo cáo sẽ được ghi (sheet đích)</small>
                   </div>
                   <div class="url-pair-actions">
-                    <button type="button" class="btn btn-icon remove-url-pair" title="Xóa cặp URL này">
+                    <button
+                      type="button"
+                      class="btn btn-icon remove-url-pair"
+                      title="Xóa cặp URL này"
+                    >
                       <i class="fas fa-trash-alt"></i>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <!-- Summary Report Configuration -->
             <div class="form-group">
-              <label for="summary-report-url">URL Báo Cáo Tổng Hợp (Tùy Chọn):</label>
+              <label for="summary-report-url"
+                >URL Báo Cáo Tổng Hợp (Tùy Chọn):</label
+              >
               <input
                 type="url"
                 id="summary-report-url"
                 placeholder="https://docs.google.com/spreadsheets/d/YOUR_SUMMARY_SHEET_ID/edit?gid=0#gid=0"
               />
-              <small>URL sheet để tạo báo cáo tổng hợp từ tất cả các cặp URL. Để trống nếu không muốn tạo báo cáo tổng hợp.</small>
+              <small
+                >URL sheet để tạo báo cáo tổng hợp từ tất cả các cặp URL. Để
+                trống nếu không muốn tạo báo cáo tổng hợp.</small
+              >
             </div>
-            
+
             <div class="button-group">
               <button id="add-url-pair" class="btn btn-outline-secondary">
                 <i class="fas fa-plus"></i> Thêm Cặp URL
@@ -94,14 +117,10 @@
           <!-- Report Generation -->
           <div class="form-group">
             <h3><i class="fas fa-calendar"></i> Tạo Báo Cáo</h3>
-            <div class="form-row" style="display: none;">
+            <div class="form-row" style="display: none">
               <div class="form-group">
                 <label for="report-date">Ngày Báo Cáo:</label>
-                <input
-                  type="date"
-                  id="report-date"
-                  required
-                />
+                <input type="date" id="report-date" required />
                 <small>Chọn ngày để tạo báo cáo (mặc định là hôm nay)</small>
               </div>
             </div>

@@ -11,6 +11,8 @@ const StorageService = require('./services/storageService');
 
 // Import routers
 const reportsRouter = require('./routes/reports');
+const adsMappingRouter = require('./routes/adsMapping');
+const emailRegistrationRouter = require('./routes/emailRegistration');
 
 // Load environment variables
 dotenv.config();
@@ -38,8 +40,14 @@ app.get('/reports.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'reports.html'));
 });
 
+app.get('/ads-mapping.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'ads-mapping.html'));
+});
+
 // Use routers
 app.use('/api/reports', reportsRouter);
+app.use('/api/ads-mapping', adsMappingRouter);
+app.use('/api/email-registration', emailRegistrationRouter);
 
 // API Routes
 app.post('/api/configure', async (req, res) => {
