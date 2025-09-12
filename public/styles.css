@@ -483,7 +483,7 @@ body {
 /* Form row styles for side-by-side inputs */
 .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 20px;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 15px;
     margin-bottom: 15px;
 }
@@ -541,7 +541,7 @@ body {
     background: white;
     border-radius: 8px;
     margin-bottom: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .report-history-item i {
@@ -629,42 +629,338 @@ body {
     color: #5a6268;
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding: 15px;
+/* Ads Mapping specific styles */
+.mapping-pair {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: #fafafa;
+}
+
+.mapping-pair-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.mapping-pair-header h4 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.remove-pair {
+    padding: 5px 10px !important;
+    font-size: 0.8rem !important;
+}
+
+/* Mapping Group specific styles */
+.mapping-group {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: #fafafa;
+}
+
+.mapping-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.mapping-group-header h4 {
+    color: #2c3e50;
+    margin: 0;
+}
+
+.remove-group {
+    padding: 5px 10px !important;
+    font-size: 0.8rem !important;
+}
+
+/* Source URLs section */
+.source-urls-section {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.source-urls-section h5 {
+    margin-bottom: 15px;
+    color: #495057;
+    font-size: 1rem;
+}
+
+.source-url-item {
+    margin-bottom: 10px;
+}
+
+.source-url-item:last-child {
+    margin-bottom: 0;
+}
+
+.remove-source {
+    padding: 5px 8px !important;
+    font-size: 0.75rem !important;
+    min-width: auto !important;
+}
+
+/* Enhanced Help Section Styling */
+.help-content {
+    line-height: 1.7;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 25px;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.help-content h2 {
+    color: #2c3e50;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #3498db;
+    font-size: 1.8rem;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.help-content h2 i {
+    color: #3498db;
+    margin-right: 12px;
+    font-size: 1.6rem;
+}
+
+.help-content h4 {
+    color: #2c3e50;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    padding: 10px 15px;
+    background: #ffffff;
+    border-left: 4px solid #3498db;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.help-content h4:first-of-type {
+    margin-top: 0;
+}
+
+.help-content p {
+    margin-bottom: 15px;
+    color: #495057;
+    font-size: 1rem;
+}
+
+.help-content ul,
+.help-content ol {
+    margin-left: 25px;
+    margin-bottom: 20px;
+    background: #ffffff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    padding-left: 40px;
+}
+
+.help-content li {
+    margin-bottom: 8px;
+    color: #495057;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.help-content li strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.help-content pre {
+    background: linear-gradient(135deg, #777777 0%, #000000 100%);
+    border: 1px solid #3e4651;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    position: relative;
+}
+
+.help-content pre::before {
+    content: "JavaScript";
+    position: absolute;
+    top: 8px;
+    right: 15px;
+    background: #3498db;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.help-content code {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    border: 1px solid #3e4651;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.help-content pre code {
+    background: none;
+    padding: 0;
+    border: none;
+    color: #f8f8f2;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    line-height: 1.5;
+}
+
+/* Syntax highlighting for code */
+.help-content pre code .keyword {
+    color: #66d9ef;
+}
+
+.help-content pre code .string {
+    color: #a6e22e;
+}
+
+.help-content pre code .comment {
+    color: #75715e;
+}
+
+/* Icon enhancements for lists */
+.help-content ul li::marker {
+    color: #3498db;
+    font-weight: bold;
+}
+
+.help-content ol li::marker {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* Interactive animations for help section */
+.help-content {
+    transition: all 0.3s ease;
+}
+
+.help-content:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.help-content h2 {
+    transition: color 0.3s ease;
+}
+
+.help-content h2:hover {
+    color: #3498db;
+}
+
+.help-content h2 i {
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.help-content h2:hover i {
+    transform: rotate(360deg);
+    color: #2980b9;
+}
+
+.help-content h4 {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.help-content h4:hover {
+    background: #f8f9fa;
+    transform: translateX(5px);
+    border-left-color: #2980b9;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+.help-content ul,
+.help-content ol {
+    transition: all 0.3s ease;
+}
+
+.help-content ul:hover,
+.help-content ol:hover {
+    background: #f8f9fa;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.help-content pre {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.help-content pre:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.help-content pre:hover::before {
+    background: #2980b9;
+}
+
+/* Pulse animation for important elements */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
     }
 
-    .header h1 {
-        font-size: 2rem;
+    50% {
+        transform: scale(1.02);
     }
 
-    .main-content {
-        grid-template-columns: 1fr;
+    100% {
+        transform: scale(1);
     }
+}
 
-    .action-buttons {
-        flex-direction: column;
-    }
+.help-content h2 {
+    animation: pulse 2s infinite;
+}
 
-    .action-buttons .btn {
-        width: 100%;
-    }
+/* Smooth scroll behavior for help section */
+.help-content {
+    scroll-behavior: smooth;
+}
 
-    .status-grid {
-        grid-template-columns: 1fr;
-    }
+/* Add subtle border animations */
+.help-content h4::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 15px;
+    width: 0;
+    height: 2px;
+    background: #3498db;
+    transition: width 0.3s ease;
+}
 
-    .form-row {
-        grid-template-columns: 1fr;
-    }
+.help-content h4 {
+    position: relative;
+}
 
-    .url-pair-actions {
-        margin-top: 10px;
-        justify-content: flex-end;
-        width: 100%;
-    }
-    
-    .form-row {
-        flex-direction: column;
-    }
+.help-content h4:hover::after {
+    width: calc(100% - 30px);
 }
