@@ -404,9 +404,9 @@ function parseDataNumber(data) {
 // Helper function to format numbers with thousands separators
 function formatNumber(number) {
   if (typeof number !== "number" || isNaN(number)) {
-    return "0";
+    return 0; // Return numeric 0 instead of string "0"
   }
-  return Math.round(number).toLocaleString("en-US");
+  return Math.round(number); // Return numeric value instead of formatted string
 }
 
 // Helper function to convert column letter to index (A=0, B=1, etc.)
@@ -448,7 +448,7 @@ function processDataByStore(rawData, targetDate) {
         totalClicks: 0,
         totalCommission: 0,
         totalBenefit: 0,
-        runner: ""
+        runner: "",
       };
     }
     storeData[storeName].records.push({
@@ -457,7 +457,7 @@ function processDataByStore(rawData, targetDate) {
       clicks,
       commission,
       benefit,
-      runner
+      runner,
     });
     storeData[storeName].totalSpend += spend;
     storeData[storeName].totalClicks += clicks;
@@ -508,7 +508,7 @@ async function writeReportToSheet(
 
     // Ensure we have a valid numeric sheet ID
     const numericSheetId = gid ? parseInt(gid, 10) : 0;
-    
+
     console.log("Report data structure:");
     console.log("Date:", targetDate);
     console.log("Stores:", Object.keys(reportData).length);
@@ -611,7 +611,7 @@ async function writeReportToSheet(
       "CĐ",
       "Tiền Hoa Hồng ($)",
       "Trạng thái",
-      "Người chạy"
+      "Người chạy",
     ]);
 
     // Calculate totals first
@@ -641,7 +641,7 @@ async function writeReportToSheet(
       totalCommission,
       totalBenefit,
       "",
-      ""
+      "",
     ]);
 
     // Rows 4+: Store data with change calculation
@@ -676,7 +676,7 @@ async function writeReportToSheet(
             totalCommission: storeData.totalCommission,
             totalBenefit: storeData.totalBenefit,
             changeIndicator,
-            runner: storeData.runner
+            runner: storeData.runner,
           });
         }
 
@@ -686,7 +686,7 @@ async function writeReportToSheet(
           storeData.totalCommission,
           storeData.totalBenefit,
           changeIndicator,
-          storeData.runner
+          storeData.runner,
         ]);
       }
     });
@@ -727,8 +727,10 @@ async function writeReportToSheet(
 
     try {
       // Add debug information to help diagnose the issue
-      console.log(`Attempting to merge cells: Sheet ID: ${numericSheetId}, Row range: 0-1, Column range: ${startColIndex}-${endColIndex}`);
-      
+      console.log(
+        `Attempting to merge cells: Sheet ID: ${numericSheetId}, Row range: 0-1, Column range: ${startColIndex}-${endColIndex}`
+      );
+
       await googleSheetsService.mergeCells(
         spreadsheetId,
         numericSheetId, // Use validated numeric sheet ID
@@ -746,6 +748,10 @@ async function writeReportToSheet(
 
       // Apply borders to all data cells (headers + data rows)
       const borderFormat = {
+        numberFormat: {
+          type: "NUMBER",
+          pattern: "#,##0",
+        },
         borders: {
           top: {
             style: "SOLID",
@@ -789,28 +795,11 @@ async function writeReportToSheet(
           bold: true,
           fontSize: 11,
         },
-        borders: {
-          top: {
-            style: "SOLID",
-            width: 1,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-          bottom: {
-            style: "SOLID",
-            width: 1,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-          left: {
-            style: "SOLID",
-            width: 1,
-            color: { red: 0, green: 0, blue: 0 },
-          },
-          right: {
-            style: "SOLID",
-            width: 1,
-            color: { red: 0, green: 0, blue: 0 },
-          },
+        numberFormat: {
+          type: "NUMBER",
+          pattern: "#,##0",
         },
+        ...borderFormat,
       };
 
       await googleSheetsService.formatCells(
@@ -849,6 +838,10 @@ async function writeReportToSheet(
           red: 0.9,
           green: 0.9,
           blue: 0.9,
+        },
+        numberFormat: {
+          type: "NUMBER",
+          pattern: "#,##0",
         },
         borders: {
           top: {
@@ -924,7 +917,9 @@ async function writeReportToSheet(
       console.warn(
         `Warning: Could not merge cells for date header: ${mergeError.message}`
       );
-      console.warn(`Merge details: Sheet: ${numericSheetId}, Row: 0-1, Columns: ${startColIndex}-${endColIndex}`);
+      console.warn(
+        `Merge details: Sheet: ${numericSheetId}, Row: 0-1, Columns: ${startColIndex}-${endColIndex}`
+      );
       // Continue execution even if merge fails
     }
 
@@ -1074,11 +1069,11 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
         [
           "",
           "TỔNG TẤT CẢ",
-          formatNumber(grandTotals.totalSpend),
-          formatNumber(grandTotals.totalClicks),
-          formatNumber(grandTotals.totalCommission),
-          formatNumber(grandTotals.totalBenefit),
-          formatNumber(grandProfit),
+          grandTotals.totalSpend,
+          grandTotals.totalClicks,
+          grandTotals.totalCommission,
+          grandTotals.totalBenefit,
+          grandProfit,
         ],
       ];
 
@@ -1094,26 +1089,26 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       dataToWrite.push([
         "",
         "TỔNG TẤT CẢ",
-        formatNumber(grandTotals.totalSpend),
-        formatNumber(grandTotals.totalClicks),
-        formatNumber(grandTotals.totalCommission),
-        formatNumber(grandTotals.totalBenefit),
-        formatNumber(grandProfit),
+        grandTotals.totalSpend,
+        grandTotals.totalClicks,
+        grandTotals.totalCommission,
+        grandTotals.totalBenefit,
+        grandProfit,
       ]);
     }
 
     // Track the first row where we add date data for later creating row groupings
     const dateRowStart = dataToWrite.length + nextRow;
-    
+
     // Row for date with overall totals
     dataToWrite.push([
       targetDate,
       "TỔNG",
-      formatNumber(overallTotals.totalSpend),
-      formatNumber(overallTotals.totalClicks),
-      formatNumber(overallTotals.totalCommission),
-      formatNumber(overallTotals.totalBenefit),
-      formatNumber(overallProfit),
+      overallTotals.totalSpend,
+      overallTotals.totalClicks,
+      overallTotals.totalCommission,
+      overallTotals.totalBenefit,
+      overallProfit,
     ]);
 
     // Rows for each pair
@@ -1122,11 +1117,11 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       dataToWrite.push([
         "", // Empty date for sub-rows
         pair.sheetName || `Sheet ${index + 1}`,
-        formatNumber(pair.totalSpend),
-        formatNumber(pair.totalClicks),
-        formatNumber(pair.totalCommission),
-        formatNumber(pair.totalBenefit),
-        formatNumber(pairProfit),
+        pair.totalSpend,
+        pair.totalClicks,
+        pair.totalCommission,
+        pair.totalBenefit,
+        pairProfit,
       ]);
     });
 
@@ -1176,6 +1171,10 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           color: { red: 0, green: 0, blue: 0 },
         },
       },
+      numberFormat: {
+        type: "NUMBER",
+        pattern: "#,##0",
+      },
     };
 
     const totalFormat = {
@@ -1183,6 +1182,35 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       textFormat: {
         bold: true,
         fontSize: 10,
+      },
+      numberFormat: {
+        type: "NUMBER",
+        pattern: "#,##0",
+      },
+    };
+
+    const borderFormat = {
+      borders: {
+        top: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
+        bottom: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
+        left: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
+        right: {
+          style: "SOLID",
+          width: 1,
+          color: { red: 0, green: 0, blue: 0 },
+        },
       },
     };
 
@@ -1216,31 +1244,6 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
       const pairRowsEndIndex = pairRowsStartIndex + summaryData.length + 1;
 
       if (summaryData.length > 0) {
-        const borderFormat = {
-          borders: {
-            top: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-            bottom: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-            left: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-            right: {
-              style: "SOLID",
-              width: 1,
-              color: { red: 0, green: 0, blue: 0 },
-            },
-          },
-        };
-
         console.log(
           `Applying borders to pair rows from index ${pairRowsStartIndex} to ${pairRowsEndIndex}`
         );
@@ -1262,7 +1265,7 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           // Get the index of the date total row and the last detail row for this date
           const dateRowIndex = dateRowStart;
           const lastDetailRowIndex = dateRowStart + summaryData.length;
-          
+
           // Only add row grouping if we have detail rows
           if (lastDetailRowIndex > dateRowIndex) {
             // Add row grouping
@@ -1273,11 +1276,17 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
               dateRowIndex + 1, // First detail row
               lastDetailRowIndex + 1 // Last detail row
             );
-            
-            console.log(`Created row grouping for date ${targetDate} from rows ${dateRowIndex + 1} to ${lastDetailRowIndex}`);
+
+            console.log(
+              `Created row grouping for date ${targetDate} from rows ${
+                dateRowIndex + 1
+              } to ${lastDetailRowIndex}`
+            );
           }
         } catch (groupingError) {
-          console.warn(`Warning: Could not create row grouping: ${groupingError.message}`);
+          console.warn(
+            `Warning: Could not create row grouping: ${groupingError.message}`
+          );
         }
       }
 

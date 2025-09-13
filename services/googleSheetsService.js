@@ -1,6 +1,6 @@
 const axios = require("axios");
-const { google } = require('googleapis');
-const path = require('path');
+const { google } = require("googleapis");
+const path = require("path");
 
 class GoogleSheetsService {
   constructor() {
@@ -16,20 +16,22 @@ class GoogleSheetsService {
     }
 
     try {
-      const keyFilePath = path.join(__dirname, '..', 'data', 'keys.json');
+      const keyFilePath = path.join(__dirname, "..", "data", "keys.json");
 
       this.auth = new google.auth.GoogleAuth({
         keyFile: keyFilePath,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       });
 
-      this.sheets = google.sheets({ version: 'v4', auth: this.auth });
+      this.sheets = google.sheets({ version: "v4", auth: this.auth });
 
-      console.log('Google Sheets API authentication initialized successfully');
+      console.log("Google Sheets API authentication initialized successfully");
       return this.auth;
     } catch (error) {
-      console.error('Error initializing Google Sheets authentication:', error);
-      throw new Error(`Failed to initialize Google Sheets auth: ${error.message}`);
+      console.error("Error initializing Google Sheets authentication:", error);
+      throw new Error(
+        `Failed to initialize Google Sheets auth: ${error.message}`
+      );
     }
   }
 
@@ -77,10 +79,14 @@ class GoogleSheetsService {
       console.error(`Error checking sheet availability:`, error);
 
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has viewer or editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has viewer or editor access to the sheet.`
+        );
       }
       if (error.code === 404) {
-        throw new Error(`Spreadsheet not found. Please check the URL and ensure the sheet exists.`);
+        throw new Error(
+          `Spreadsheet not found. Please check the URL and ensure the sheet exists.`
+        );
       }
 
       throw new Error(`Failed to check sheet availability: ${error.message}`);
@@ -130,10 +136,10 @@ class GoogleSheetsService {
       });
 
       // Find the sheet with the matching GID
-      let sheetName = 'Sheet1'; // default
+      let sheetName = "Sheet1"; // default
       if (spreadsheet.data.sheets) {
-        const targetSheet = spreadsheet.data.sheets.find(sheet =>
-          sheet.properties.sheetId.toString() === gid
+        const targetSheet = spreadsheet.data.sheets.find(
+          (sheet) => sheet.properties.sheetId.toString() === gid
         );
         if (targetSheet) {
           sheetName = targetSheet.properties.title;
@@ -152,12 +158,16 @@ class GoogleSheetsService {
 
       return csvData;
     } catch (error) {
-      console.error('Error fetching private sheet data:', error);
+      console.error("Error fetching private sheet data:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to private spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has viewer or editor access to the sheet.`);
+        throw new Error(
+          `Access denied to private spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has viewer or editor access to the sheet.`
+        );
       }
       if (error.code === 404) {
-        throw new Error(`Private spreadsheet not found. Please check the URL and ensure the sheet exists.`);
+        throw new Error(
+          `Private spreadsheet not found. Please check the URL and ensure the sheet exists.`
+        );
       }
       throw new Error(`Failed to fetch private sheet data: ${error.message}`);
     }
@@ -165,17 +175,26 @@ class GoogleSheetsService {
 
   // Helper method to convert values array to CSV format
   convertToCsv(values) {
-    return values.map(row => {
-      return row.map(cell => {
-        // Handle cells with commas, quotes, or newlines
-        const cellStr = (cell || '').toString();
-        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n') || cellStr.includes('\r')) {
-          // Escape quotes by doubling them and wrap in quotes
-          return `"${cellStr.replace(/"/g, '""')}"`;
-        }
-        return cellStr;
-      }).join(',');
-    }).join('\n');
+    return values
+      .map((row) => {
+        return row
+          .map((cell) => {
+            // Handle cells with commas, quotes, or newlines
+            const cellStr = (cell || "").toString();
+            if (
+              cellStr.includes(",") ||
+              cellStr.includes('"') ||
+              cellStr.includes("\n") ||
+              cellStr.includes("\r")
+            ) {
+              // Escape quotes by doubling them and wrap in quotes
+              return `"${cellStr.replace(/"/g, '""')}"`;
+            }
+            return cellStr;
+          })
+          .join(",");
+      })
+      .join("\n");
   }
 
   // Convert Google Sheets URL to CSV export URL
@@ -447,11 +466,15 @@ class GoogleSheetsService {
 
       const rows = this.parseCSV(csvData);
 
-      console.log(`Successfully fetched ${rows.length} rows from private sheet URL`);
+      console.log(
+        `Successfully fetched ${rows.length} rows from private sheet URL`
+      );
       return rows;
     } catch (error) {
       console.error(`Error fetching private sheet from URL: ${url}`, error);
-      throw new Error(`Failed to fetch data from private sheet URL: ${error.message}`);
+      throw new Error(
+        `Failed to fetch data from private sheet URL: ${error.message}`
+      );
     }
   }
 
@@ -486,7 +509,9 @@ class GoogleSheetsService {
     } catch (error) {
       console.error("Error reading sheet values:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`
+        );
       }
       throw new Error(`Failed to read sheet values: ${error.message}`);
     }
@@ -500,7 +525,7 @@ class GoogleSheetsService {
       const response = await this.sheets.spreadsheets.values.update({
         spreadsheetId,
         range,
-        valueInputOption: 'RAW',
+        valueInputOption: "RAW",
         requestBody: {
           values: values,
         },
@@ -511,7 +536,9 @@ class GoogleSheetsService {
     } catch (error) {
       console.error("Error writing sheet values:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has editor access to the sheet.`
+        );
       }
       if (error.code === 400) {
         throw new Error(`Invalid range or data format: ${error.message}`);
@@ -528,9 +555,9 @@ class GoogleSheetsService {
       const response = await this.sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
         resource: {
-          valueInputOption: 'RAW',
-          data: updates
-        }
+          valueInputOption: "RAW",
+          data: updates,
+        },
       });
 
       console.log(`Successfully batch updated ${updates.length} ranges`);
@@ -538,7 +565,9 @@ class GoogleSheetsService {
     } catch (error) {
       console.error("Error batch updating sheet values:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has editor access to the sheet.`
+        );
       }
       if (error.code === 400) {
         throw new Error(`Invalid range or data format: ${error.message}`);
@@ -555,19 +584,23 @@ class GoogleSheetsService {
       const response = await this.sheets.spreadsheets.values.append({
         spreadsheetId,
         range,
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
         requestBody: {
           values: values,
         },
       });
 
-      console.log(`Successfully appended ${values.length} rows to range ${range}`);
+      console.log(
+        `Successfully appended ${values.length} rows to range ${range}`
+      );
       return response.data;
     } catch (error) {
       console.error("Error appending sheet values:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account (editor@ggsheet-469714.iam.gserviceaccount.com) has editor access to the sheet.`
+        );
       }
       if (error.code === 400) {
         throw new Error(`Invalid range or data format: ${error.message}`);
@@ -577,7 +610,15 @@ class GoogleSheetsService {
   }
 
   // Merge cells in a specific range
-  async mergeCells(spreadsheetId, sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex, mergeType = 'MERGE_ALL') {
+  async mergeCells(
+    spreadsheetId,
+    sheetId,
+    startRowIndex,
+    endRowIndex,
+    startColumnIndex,
+    endColumnIndex,
+    mergeType = "MERGE_ALL"
+  ) {
     try {
       await this.initAuth();
 
@@ -608,21 +649,37 @@ class GoogleSheetsService {
                 },
                 cell: {
                   userEnteredFormat: {
-                    horizontalAlignment: 'CENTER',
-                    verticalAlignment: 'MIDDLE',
+                    horizontalAlignment: "CENTER",
+                    verticalAlignment: "MIDDLE",
                     textFormat: {
                       bold: true,
-                      fontSize: 12
+                      fontSize: 12,
                     },
                     borders: {
-                      top: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
-                      bottom: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
-                      left: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } },
-                      right: { style: 'SOLID', width: 1, color: { red: 0, green: 0, blue: 0 } }
-                    }
+                      top: {
+                        style: "SOLID",
+                        width: 1,
+                        color: { red: 0, green: 0, blue: 0 },
+                      },
+                      bottom: {
+                        style: "SOLID",
+                        width: 1,
+                        color: { red: 0, green: 0, blue: 0 },
+                      },
+                      left: {
+                        style: "SOLID",
+                        width: 1,
+                        color: { red: 0, green: 0, blue: 0 },
+                      },
+                      right: {
+                        style: "SOLID",
+                        width: 1,
+                        color: { red: 0, green: 0, blue: 0 },
+                      },
+                    },
                   },
                 },
-                fields: 'userEnteredFormat',
+                fields: "userEnteredFormat",
               },
             },
           ],
@@ -630,12 +687,20 @@ class GoogleSheetsService {
       };
 
       const response = await this.sheets.spreadsheets.batchUpdate(request);
-      console.log(`Successfully merged cells from row ${startRowIndex} to ${endRowIndex - 1}, column ${startColumnIndex} to ${endColumnIndex - 1} with complete formatting (center, bold, borders)`);
+      console.log(
+        `Successfully merged cells from row ${startRowIndex} to ${
+          endRowIndex - 1
+        }, column ${startColumnIndex} to ${
+          endColumnIndex - 1
+        } with complete formatting (center, bold, borders)`
+      );
       return response.data;
     } catch (error) {
       console.error("Error merging cells:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`
+        );
       }
       if (error.code === 400) {
         throw new Error(`Invalid merge request: ${error.message}`);
@@ -645,7 +710,15 @@ class GoogleSheetsService {
   }
 
   // Format cells (apply styling like center alignment, bold, etc.)
-  async formatCells(spreadsheetId, sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex, format) {
+  async formatCells(
+    spreadsheetId,
+    sheetId,
+    startRowIndex,
+    endRowIndex,
+    startColumnIndex,
+    endColumnIndex,
+    format
+  ) {
     try {
       await this.initAuth();
 
@@ -665,7 +738,7 @@ class GoogleSheetsService {
                 cell: {
                   userEnteredFormat: format,
                 },
-                fields: 'userEnteredFormat',
+                fields: "userEnteredFormat",
               },
             },
           ],
@@ -673,12 +746,18 @@ class GoogleSheetsService {
       };
 
       const response = await this.sheets.spreadsheets.batchUpdate(request);
-      console.log(`Successfully formatted cells from row ${startRowIndex} to ${endRowIndex - 1}, column ${startColumnIndex} to ${endColumnIndex - 1}`);
+      console.log(
+        `Successfully formatted cells from row ${startRowIndex} to ${
+          endRowIndex - 1
+        }, column ${startColumnIndex} to ${endColumnIndex - 1}`
+      );
       return response.data;
     } catch (error) {
       console.error("Error formatting cells:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`
+        );
       }
       if (error.code === 400) {
         throw new Error(`Invalid format request: ${error.message}`);
@@ -688,7 +767,12 @@ class GoogleSheetsService {
   }
 
   // Auto-fit columns to content
-  async autoFitColumns(spreadsheetId, sheetId, startColumnIndex, endColumnIndex) {
+  async autoFitColumns(
+    spreadsheetId,
+    sheetId,
+    startColumnIndex,
+    endColumnIndex
+  ) {
     try {
       await this.initAuth();
 
@@ -700,7 +784,7 @@ class GoogleSheetsService {
               autoResizeDimensions: {
                 dimensions: {
                   sheetId: parseInt(sheetId),
-                  dimension: 'COLUMNS',
+                  dimension: "COLUMNS",
                   startIndex: startColumnIndex,
                   endIndex: endColumnIndex,
                 },
@@ -711,12 +795,18 @@ class GoogleSheetsService {
       };
 
       const response = await this.sheets.spreadsheets.batchUpdate(request);
-      console.log(`Successfully auto-fitted columns from ${startColumnIndex} to ${endColumnIndex - 1}`);
+      console.log(
+        `Successfully auto-fitted columns from ${startColumnIndex} to ${
+          endColumnIndex - 1
+        }`
+      );
       return response.data;
     } catch (error) {
       console.error("Error auto-fitting columns:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`
+        );
       }
       if (error.code === 400) {
         throw new Error(`Invalid auto-fit request: ${error.message}`);
@@ -733,10 +823,12 @@ class GoogleSheetsService {
       // Get current sheet properties
       const response = await this.sheets.spreadsheets.get({
         spreadsheetId,
-        fields: 'sheets.properties',
+        fields: "sheets.properties",
       });
 
-      const sheet = response.data.sheets.find(s => s.properties.sheetId == sheetId);
+      const sheet = response.data.sheets.find(
+        (s) => s.properties.sheetId == sheetId
+      );
       if (!sheet) {
         throw new Error(`Sheet with ID ${sheetId} not found`);
       }
@@ -744,7 +836,9 @@ class GoogleSheetsService {
       const currentRows = sheet.properties.gridProperties?.rowCount || 1000;
       const currentColumns = sheet.properties.gridProperties?.columnCount || 26;
 
-      console.log(`Current sheet size: ${currentRows} rows, ${currentColumns} columns`);
+      console.log(
+        `Current sheet size: ${currentRows} rows, ${currentColumns} columns`
+      );
       console.log(`Required size: ${minRows} rows, ${minColumns} columns`);
 
       // Check if we need to expand
@@ -756,7 +850,9 @@ class GoogleSheetsService {
         const newRows = Math.max(currentRows, minRows) + 10; // Add buffer
         const newColumns = Math.max(currentColumns, minColumns) + 10; // Add buffer
 
-        console.log(`Expanding sheet to: ${newRows} rows, ${newColumns} columns`);
+        console.log(
+          `Expanding sheet to: ${newRows} rows, ${newColumns} columns`
+        );
 
         const updateRequest = {
           spreadsheetId,
@@ -771,7 +867,7 @@ class GoogleSheetsService {
                       columnCount: newColumns,
                     },
                   },
-                  fields: 'gridProperties.rowCount,gridProperties.columnCount',
+                  fields: "gridProperties.rowCount,gridProperties.columnCount",
                 },
               },
             ],
@@ -779,7 +875,9 @@ class GoogleSheetsService {
         };
 
         await this.sheets.spreadsheets.batchUpdate(updateRequest);
-        console.log(`Successfully expanded sheet to ${newRows} rows and ${newColumns} columns`);
+        console.log(
+          `Successfully expanded sheet to ${newRows} rows and ${newColumns} columns`
+        );
 
         return {
           expanded: true,
@@ -789,7 +887,7 @@ class GoogleSheetsService {
           expandedColumns: needsColumnExpansion,
         };
       } else {
-        console.log('Sheet size is sufficient, no expansion needed');
+        console.log("Sheet size is sufficient, no expansion needed");
         return {
           expanded: false,
           currentRows,
@@ -801,7 +899,9 @@ class GoogleSheetsService {
     } catch (error) {
       console.error("Error ensuring sheet size:", error);
       if (error.code === 403) {
-        throw new Error(`Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`);
+        throw new Error(
+          `Access denied to spreadsheet. Please ensure the service account has editor access to the sheet.`
+        );
       }
       if (error.code === 400) {
         throw new Error(`Invalid sheet size request: ${error.message}`);
@@ -817,10 +917,12 @@ class GoogleSheetsService {
 
       const response = await this.sheets.spreadsheets.get({
         spreadsheetId,
-        fields: 'sheets.properties',
+        fields: "sheets.properties",
       });
 
-      const sheet = response.data.sheets.find(s => s.properties.sheetId == sheetId);
+      const sheet = response.data.sheets.find(
+        (s) => s.properties.sheetId == sheetId
+      );
       if (!sheet) {
         throw new Error(`Sheet with ID ${sheetId} not found`);
       }
@@ -851,16 +953,20 @@ class GoogleSheetsService {
                   sheetId: sheetId,
                   dimension: "ROWS",
                   startIndex: startRow,
-                  endIndex: endRow
-                }
-              }
-            }
-          ]
-        }
+                  endIndex: endRow,
+                },
+              },
+            },
+          ],
+        },
       };
 
-      const response = await this.sheets.spreadsheets.batchUpdate(updateRequest);
-      console.log(`Successfully added row grouping from row ${startRow} to ${endRow}`);
+      const response = await this.sheets.spreadsheets.batchUpdate(
+        updateRequest
+      );
+      console.log(
+        `Successfully added row grouping from row ${startRow} to ${endRow}`
+      );
 
       // Add custom formatting to parent row to indicate it's expandable
       const parentRowFormat = {
@@ -871,7 +977,29 @@ class GoogleSheetsService {
         },
         textFormat: {
           bold: true,
-        }
+        },
+        borders: {
+          top: {
+            style: "SOLID",
+            width: 1,
+            color: { red: 0, green: 0, blue: 0 },
+          },
+          bottom: {
+            style: "SOLID",
+            width: 1,
+            color: { red: 0, green: 0, blue: 0 },
+          },
+          left: {
+            style: "SOLID",
+            width: 1,
+            color: { red: 0, green: 0, blue: 0 },
+          },
+          right: {
+            style: "SOLID",
+            width: 1,
+            color: { red: 0, green: 0, blue: 0 },
+          },
+        },
       };
 
       await this.formatCells(
@@ -886,7 +1014,7 @@ class GoogleSheetsService {
 
       return {
         success: true,
-        groupedRows: endRow - startRow
+        groupedRows: endRow - startRow,
       };
     } catch (error) {
       console.error("Error adding row grouping:", error);
