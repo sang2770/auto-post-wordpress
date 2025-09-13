@@ -1007,11 +1007,21 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           continue;
         }
         if (row[1] === "TỔNG" && row[0]) {
-          // Only count daily TỔNG rows with dates
-          grandTotals.totalSpend += parseFloat(row[2]) || 0;
-          grandTotals.totalClicks += parseFloat(row[3]) || 0;
-          grandTotals.totalCommission += parseFloat(row[4]) || 0;
-          grandTotals.totalBenefit += parseFloat(row[5]) || 0;
+          const fnumber = (val) => {
+            if (typeof val === "string") {
+              const formatVal = val
+                .replaceAll(/[.\sđ$]/g, "")
+                .replaceAll(",", ".");
+              return parseFloat(formatVal) || 0;
+            }
+            return parseFloat(val) || 0;
+          };
+          grandTotals.totalSpend += fnumber(row[2]);
+          grandTotals.totalClicks += fnumber(row[3]);
+          grandTotals.totalCommission += fnumber(row[4]);
+          grandTotals.totalBenefit += fnumber(row[5]);
+          console.log(`Including existing totals from row ${i + 1} in grand totals`, row);
+          
         }
       }
     }
@@ -1211,6 +1221,10 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           width: 1,
           color: { red: 0, green: 0, blue: 0 },
         },
+      },
+      numberFormat: {
+        type: "NUMBER",
+        pattern: "#,##0",
       },
     };
 
