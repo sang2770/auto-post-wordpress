@@ -386,6 +386,13 @@ router.get("/stores", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+const fnumber = (val) => {
+  if (typeof val === "string") {
+    const formatVal = val.replaceAll(/[.\sđ$]/g, "").replaceAll(",", ".");
+    return parseFloat(formatVal) || 0;
+  }
+  return parseFloat(val) || 0;
+};
 
 function parseDataNumber(data) {
   try {
@@ -534,6 +541,34 @@ async function writeReportToSheet(
       );
       existingData = [];
     }
+    existingData = existingData.slice(2);
+    const totalData = {
+      totalSpend: 0,
+      totalClicks: 0,
+      totalCommission: 0,
+      totalBenefit: 0,
+    };
+    let dataTotal = existingData.slice(2);
+    if (dataTotal && dataTotal.length > 0) {
+      dataTotal = dataTotal[0];
+      let indexTotalColumn = 1;
+      while (indexTotalColumn < dataTotal.length) {
+        totalData.totalSpend += fnumber(dataTotal[indexTotalColumn] || "0");
+        totalData.totalClicks += fnumber(
+          dataTotal[indexTotalColumn + 1] || "0"
+        );
+        totalData.totalCommission += fnumber(
+          dataTotal[indexTotalColumn + 2] || "0"
+        );
+        totalData.totalBenefit += fnumber(
+          dataTotal[indexTotalColumn + 3] || "0"
+        );
+        indexTotalColumn += 6;
+      }
+    }
+
+    const startWriteRow = 2;
+
     // Get store existed from A3 -> bottom, excluding any existing "TỔNG" entries
     const existingStores = existingData
       .slice(2)
@@ -546,11 +581,8 @@ async function writeReportToSheet(
     let colIndex = 1; // B = index 1
 
     if (existingData.length > 0) {
-      // Find the first empty group of 6 columns (4 data + 1 change column + 1 runner column)
-      const maxColumns = 100; // Allow up to column CV (100 columns should be enough)
-      while (colIndex < maxColumns) {
+      while (true) {
         const col1 = getColumnLetter(colIndex);
-
         // Check if all 5 columns are empty in row 1
         const row1 = existingData[0] || [];
         if (
@@ -566,6 +598,8 @@ async function writeReportToSheet(
         colIndex += 6; // Move to next group of 6 columns
       }
     }
+
+    console.log("Next available column for writing:", nextColumnStart);
 
     // Prepare the data structure
     const stores = [
@@ -644,6 +678,11 @@ async function writeReportToSheet(
       "",
     ]);
 
+    totalData.totalSpend += totalSpend;
+    totalData.totalClicks += totalClicks;
+    totalData.totalCommission += totalCommission;
+    totalData.totalBenefit += totalBenefit;
+
     // Rows 4+: Store data with change calculation
     stores.forEach((storeName) => {
       const storeData = reportData[storeName];
@@ -694,6 +733,8 @@ async function writeReportToSheet(
     const storeNamesData = [];
     storeNamesData.push([""]); // A1 empty
     storeNamesData.push([""]); // A2 empty
+    storeNamesData.push([""]); // A1 empty
+    storeNamesData.push([""]); // A2 empty
     // Add summary row label at the top
     storeNamesData.push(["TỔNG"]);
     stores.forEach((storeName) => {
@@ -712,13 +753,30 @@ async function writeReportToSheet(
 
     // Write the report data starting from the determined column
     const endCol = getColumnLetter(getColumnIndex(nextColumnStart) + 5); // 6 columns total (0-5)
-    const dataRange = `${sheetName}!${nextColumnStart}1:${endCol}${dataToWrite.length}`;
+    const dataRange = `${sheetName}!${nextColumnStart}${
+      startWriteRow + 1
+    }:${endCol}${startWriteRow + 1 + dataToWrite.length}`;
 
     console.log(`Writing data to range: ${dataRange}`);
     await googleSheetsService.writeSheetValues(
       spreadsheetId,
       dataRange,
       dataToWrite
+    );
+
+    await googleSheetsService.writeSheetValues(
+      spreadsheetId,
+      `${sheetName}!A1:E2`,
+      [
+        ["", "Số Tiền Chạy(VNĐ)", "Click", "CĐ", "Tiền Hoa Hồng ($)"],
+        [
+          "TỔNG CỘNG",
+          totalData.totalSpend,
+          totalData.totalClicks,
+          totalData.totalCommission,
+          totalData.totalBenefit,
+        ],
+      ]
     );
 
     // Merge the date header cells (row 1, columns across 6 columns)
@@ -729,21 +787,6 @@ async function writeReportToSheet(
       // Add debug information to help diagnose the issue
       console.log(
         `Attempting to merge cells: Sheet ID: ${numericSheetId}, Row range: 0-1, Column range: ${startColIndex}-${endColIndex}`
-      );
-
-      await googleSheetsService.mergeCells(
-        spreadsheetId,
-        numericSheetId, // Use validated numeric sheet ID
-        0, // Start row index (row 1 = index 0)
-        1, // End row index (row 2 = index 1, exclusive)
-        startColIndex, // Start column index
-        endColIndex, // End column index (exclusive)
-        "MERGE_ALL"
-      );
-      console.log(
-        `Successfully merged date header cells from column ${nextColumnStart} to ${getColumnLetter(
-          endColIndex - 1
-        )} with complete formatting`
       );
 
       // Apply borders to all data cells (headers + data rows)
@@ -775,16 +818,43 @@ async function writeReportToSheet(
           },
         },
       };
-
       // Apply borders to data columns (from row 2 onwards, all data rows)
       await googleSheetsService.formatCells(
         spreadsheetId,
         numericSheetId,
-        1, // Start from row 2 (headers)
-        dataToWrite.length, // End at the last data row
+        startWriteRow, // Start from row 2 (headers)
+        startWriteRow + dataToWrite.length, // End at the last data row
         startColIndex, // Start column index
         endColIndex, // End column index (exclusive)
         borderFormat
+      );
+
+      // Also apply borders to store names column (column A) if this is the first report
+      if (nextColumnStart === "B") {
+        await googleSheetsService.formatCells(
+          spreadsheetId,
+          numericSheetId,
+          0,
+          storeNamesData.length, // All rows with store names
+          0, // Start column index
+          5, // End column index (exclusive)
+          borderFormat
+        );
+      }
+
+      await googleSheetsService.mergeCells(
+        spreadsheetId,
+        numericSheetId, // Use validated numeric sheet ID
+        startWriteRow, // Start row index (row 1 = index 0)
+        startWriteRow + 1, // End row index (row 2 = index 1, exclusive)
+        startColIndex, // Start column index
+        endColIndex, // End column index (exclusive)
+        "MERGE_ALL"
+      );
+      console.log(
+        `Successfully merged date header cells from column ${nextColumnStart} to ${getColumnLetter(
+          endColIndex - 1
+        )} with complete formatting`
       );
 
       // Apply center alignment to header row (row 2)
@@ -805,28 +875,15 @@ async function writeReportToSheet(
       await googleSheetsService.formatCells(
         spreadsheetId,
         numericSheetId,
-        1, // Row 2 (headers)
-        2, // End at row 2 (exclusive)
+        startWriteRow, // Row 2 (headers)
+        startWriteRow + 3, // End at row 2 (exclusive)
         startColIndex, // Start column index
         endColIndex, // End column index (exclusive)
         headerFormat
       );
 
-      // Also apply borders to store names column (column A) if this is the first report
-      if (nextColumnStart === "B") {
-        await googleSheetsService.formatCells(
-          spreadsheetId,
-          numericSheetId,
-          1, // Start from row 2 (headers)
-          dataToWrite.length, // End at the last data row
-          0, // Column A (index 0)
-          1, // Column A only (exclusive end)
-          borderFormat
-        );
-      }
-
       // Apply special formatting to summary row (bold and background color)
-      const summaryRowIndex = 2; // Summary row is now the 3rd row (index 2)
+      const summaryRowIndex = startWriteRow + 2; // Summary row is now the 3rd row (index 2)
       const summaryFormat = {
         horizontalAlignment: "CENTER",
         verticalAlignment: "MIDDLE",
@@ -1007,21 +1064,14 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
           continue;
         }
         if (row[1] === "TỔNG" && row[0]) {
-          const fnumber = (val) => {
-            if (typeof val === "string") {
-              const formatVal = val
-                .replaceAll(/[.\sđ$]/g, "")
-                .replaceAll(",", ".");
-              return parseFloat(formatVal) || 0;
-            }
-            return parseFloat(val) || 0;
-          };
           grandTotals.totalSpend += fnumber(row[2]);
           grandTotals.totalClicks += fnumber(row[3]);
           grandTotals.totalCommission += fnumber(row[4]);
           grandTotals.totalBenefit += fnumber(row[5]);
-          console.log(`Including existing totals from row ${i + 1} in grand totals`, row);
-          
+          // console.log(
+          //   `Including existing totals from row ${i + 1} in grand totals`,
+          //   row
+          // );
         }
       }
     }
