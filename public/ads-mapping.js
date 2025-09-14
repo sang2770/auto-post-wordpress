@@ -2,9 +2,9 @@ let mappingGroupCount = 1;
 let registeredEmails = [];
 
 // Load existing configuration on page load
-document.addEventListener('DOMContentLoaded', function () {
-    loadMappingConfig();
-    loadRegisteredEmails();
+document.addEventListener('DOMContentLoaded', async function () {
+    await loadRegisteredEmails();
+    await loadMappingConfig();
 });
 
 // Email Registration Functions
@@ -58,6 +58,7 @@ async function loadRegisteredEmails() {
         updateEmailDropdowns();
     } catch (error) {
         console.error('Error loading registered emails:', error);
+        registeredEmails = []; // Ensure it's always an array
     }
 }
 
@@ -149,6 +150,8 @@ function addMappingGroup() {
     container.appendChild(newGroup);
     mappingGroupCount++;
     updateRemoveButtons();
+    // Ensure the new group's dropdowns are properly populated
+    updateEmailDropdowns();
 }
 
 // Create mapping group element
@@ -156,6 +159,12 @@ function createMappingGroupElement(index) {
     const div = document.createElement('div');
     div.className = 'mapping-group';
     div.id = `mapping-group-${index}`;
+    
+    // Generate email options
+    const emailOptions = registeredEmails.map(email =>
+        `<option value="${email.email}">${email.email} (${email.description || 'Không có mô tả'})</option>`
+    ).join('');
+    
     div.innerHTML = `
         <div class="mapping-group-header">
             <h4>Group ${index + 1}</h4>
@@ -196,6 +205,7 @@ function createMappingGroupElement(index) {
                         <div class="form-group" style="flex: 1">
                             <select class="source-email" required>
                                 <option value="">-- Chọn email nguồn --</option>
+                                ${emailOptions}
                             </select>
                             <small>Chọn email đã đăng ký từ Google Ads script</small>
                         </div>
@@ -331,6 +341,11 @@ async function loadMappingConfig() {
             showStatus('Chưa có cấu hình nào', 'info');
         }
 
+        // Load dollar price
+        if (data.dollarPrice) {
+            document.getElementById('global-dollar-price').value = data.dollarPrice;
+        }
+
         // // Load global column config
         // if (data.globalColumns) {
         //     document.getElementById('global-store-column').value = data.globalColumns.storeColumn || 'A';
@@ -359,7 +374,7 @@ function populateMappingGroups(groups) {
         // Populate source emails
         const sourceContainer = document.getElementById(`source-emails-${index}`);
 
-        // Clear existing and update dropdown options
+        // Update email dropdowns for this specific group
         updateEmailDropdowns();
 
         if (group.sourceEmails && group.sourceEmails.length > 0) {
