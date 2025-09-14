@@ -526,6 +526,7 @@ async function writeReportToSheet(
     const previousPairData = allPreviousData[`pair_${pairIndex}`];
     const previousData = previousPairData?.reportData || {};
 
+
     // Read existing data to find the next available column set
     let existingData = [];
     try {
@@ -655,25 +656,17 @@ async function writeReportToSheet(
     const changedStoresData = [];
 
     // Calculate totals from all stores
-    stores.forEach((storeName) => {
-      const storeData = reportData[storeName];
-      if (storeData) {
-        totalSpend += storeData.totalSpend;
-        totalClicks += storeData.totalClicks;
-        totalCommission += storeData.totalCommission;
-        totalBenefit += storeData.totalBenefit;
-      }
-    });
+    // stores.forEach((storeName) => {
+    //   const storeData = reportData[storeName];
+    //   if (storeData) {
+    //     totalSpend += storeData.totalSpend;
+    //     totalClicks += storeData.totalClicks;
+    //     totalCommission += storeData.totalCommission;
+    //     totalBenefit += storeData.totalBenefit;
+    //   }
+    // });
 
-    // Row 3: Add summary row with totals at the top
-    dataToWrite.push([
-      totalSpend,
-      totalClicks,
-      totalCommission,
-      totalBenefit,
-      "",
-      "",
-    ]);
+
 
     // Rows 4+: Store data with change calculation
     stores.forEach((storeName) => {
@@ -709,33 +702,49 @@ async function writeReportToSheet(
             changeIndicator,
             runner: storeData.runner,
           });
-        }
+          totalSpend += storeData.totalSpend;
+          totalClicks += storeData.totalClicks;
+          totalCommission += storeData.totalCommission;
+          totalBenefit += storeData.totalBenefit;
+          dataToWrite.push([
+            storeData.totalSpend,
+            storeData.totalClicks,
+            storeData.totalCommission,
+            storeData.totalBenefit,
+            changeIndicator,
+            storeData.runner,
+          ]);
 
-        dataToWrite.push([
-          storeData.totalSpend,
-          storeData.totalClicks,
-          storeData.totalCommission,
-          storeData.totalBenefit,
-          changeIndicator,
-          storeData.runner,
-        ]);
-        const summaryStore = dataTotalStoreWrites.get(storeName);
-        if (summaryStore) {
-          summaryStore.totalSpend += storeData.totalSpend;
-          summaryStore.totalClicks += storeData.totalClicks;
-          summaryStore.totalCommission += storeData.totalCommission;
-          summaryStore.totalBenefit += storeData.totalBenefit;
+          const summaryStore = dataTotalStoreWrites.get(storeName);
+          if (summaryStore) {
+            summaryStore.totalSpend += storeData.totalSpend;
+            summaryStore.totalClicks += storeData.totalClicks;
+            summaryStore.totalCommission += storeData.totalCommission;
+            summaryStore.totalBenefit += storeData.totalBenefit;
+          } else {
+            dataTotalStoreWrites.set(storeName, {
+              totalSpend: storeData.totalSpend,
+              totalClicks: storeData.totalClicks,
+              totalCommission: storeData.totalCommission,
+              totalBenefit: storeData.totalBenefit,
+              runner: storeData.runner,
+            });
+          }
         } else {
-          dataTotalStoreWrites.set(storeName, {
-            totalSpend: storeData.totalSpend,
-            totalClicks: storeData.totalClicks,
-            totalCommission: storeData.totalCommission,
-            totalBenefit: storeData.totalBenefit,
-            runner: storeData.runner,
-          });
+          dataToWrite.push(["", "", "", "", "", ""]);
         }
       }
     });
+
+    // Row 3: Add summary row with totals at the top
+    dataToWrite.splice(2, 0, [
+      totalSpend,
+      totalClicks,
+      totalCommission,
+      totalBenefit,
+      "",
+      "",
+    ]);
 
     const storeNamesData = [];
     storeNamesData.push([""]); // A1 empty
