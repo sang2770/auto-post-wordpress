@@ -242,38 +242,6 @@ router.post('/execute', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });// Execute mapping for a specific pair
-router.post('/execute-single', async (req, res) => {
-    try {
-        const { sourceUrl, destinationUrl, storeNameColumn, clicksColumn, moneyColumn } = req.body;
-
-        if (!sourceUrl || !destinationUrl) {
-            return res.status(400).json({
-                error: 'Both source URL and destination URL are required'
-            });
-        }
-
-        const pair = {
-            name: 'Single Execution',
-            sourceUrl,
-            destinationUrl,
-            storeNameColumn: storeNameColumn || 'A',
-            clicksColumn: clicksColumn || 'D',
-            moneyColumn: moneyColumn || 'E'
-        };
-
-        const results = await adsMappingService.processMappingPairs([pair]);
-
-        res.json({
-            success: true,
-            message: 'Single mapping execution completed',
-            result: results[0]
-        });
-
-    } catch (error) {
-        console.error('Error executing single ads mapping:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
 
 // Get mapping execution history
 router.get('/history', async (req, res) => {

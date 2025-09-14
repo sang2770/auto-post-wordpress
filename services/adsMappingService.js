@@ -188,46 +188,6 @@ class AdsMappingService {
     }
 
     /**
-     * Process multiple URL pairs for ads data mapping
-     */
-    async processMappingPairs(mappingPairs) {
-        const results = [];
-
-        for (const pair of mappingPairs) {
-            try {
-                console.log(`Processing mapping pair: ${pair.name || 'Unnamed'}`);
-
-                // Read ads data from source
-                const adsData = await this.readAdsReportData(pair.sourceUrl);
-
-                // Map to destination
-                const mappingResult = await this.mapDataToDestination(
-                    adsData,
-                    pair.destinationUrl
-                );
-
-                results.push({
-                    ...pair,
-                    success: true,
-                    result: mappingResult,
-                    processedAt: new Date().toISOString()
-                });
-
-            } catch (error) {
-                console.error(`Error processing pair ${pair.name}:`, error);
-                results.push({
-                    ...pair,
-                    success: false,
-                    error: error.message,
-                    processedAt: new Date().toISOString()
-                });
-            }
-        }
-
-        return results;
-    }
-
-    /**
      * Process multiple groups for ads data mapping  
      * Each group has one destination and multiple sources
      */
