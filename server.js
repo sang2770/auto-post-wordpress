@@ -753,10 +753,44 @@ async function generateDailyReport() {
 const pollingInterval = process.env.POLLING_INTERVAL || 5;
 cron.schedule(`*/${pollingInterval} * * * *`, checkForChanges);
 
-// Schedule daily report generation at 2:00 AM UTC+7
-cron.schedule('0 2 * * *', generateDailyReport, {
-    timezone: 'Asia/Bangkok' // UTC+7
-});
+// // Schedule daily report generation at 2:00 AM UTC+7
+// cron.schedule('0 2 * * *', generateDailyReport, {
+//     timezone: 'Asia/Bangkok' // UTC+7
+// });
+
+// // Schedule ads mapping refresh at 1:00 AM UTC+7
+// cron.schedule('0 1 * * *', async () => {
+//     try {
+//         const config = await storageService.getConfig();
+//         const mappingGroups = config?.adsMappingGroups;
+//         if (!mappingGroups || mappingGroups.length === 0) {
+//             console.log('No ads mapping groups configured, skipping ads mapping refresh');
+//             return;
+//         }
+
+//         console.log(`Starting ads mapping execution for ${mappingGroups.length} groups`);
+
+//         // Check if groups have sourceEmails (new format) or sourceUrls (legacy format)
+//         const hasEmailBasedGroups = mappingGroups.some(group => group.sourceEmails && group.sourceEmails.length > 0);
+
+//         let results;
+//         if (hasEmailBasedGroups) {
+//             results = await adsMappingService.processGroupMappingsWithEmails(mappingGroups);
+//         } else {
+//             results = await adsMappingService.processGroupMappings(mappingGroups);
+//         }
+//         // Update last execution time
+//         config.lastAdsMappingExecution = new Date().toISOString();
+//         await storageService.saveConfig(config);
+//         const successCount = results.filter(r => r.success).length;
+//         const failureCount = results.filter(r => !r.success).length;
+//         console.log(`Ads mapping execution completed. Success: ${successCount}, Failures: ${failureCount}`);
+//     } catch (error) {
+//         console.error('Error refreshing ads mapping data:', error);
+//     }
+// }, {
+//     timezone: 'Asia/Bangkok' // UTC+7
+// });
 
 // Start server
 app.listen(PORT, () => {

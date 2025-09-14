@@ -605,10 +605,6 @@ async function writeReportToSheet(
         (store) => !existingStores.includes(store)
       ),
     ];
-    console.log("xxxx", ...existingStores, Object.keys(reportData).filter(
-      (store) => !existingStores.includes(store)
-    ));
-
 
     // Calculate required dimensions
     const requiredRows = Math.max(stores.length + 3, 10); // +3 for header rows + summary row, minimum 10
