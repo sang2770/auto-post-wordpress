@@ -548,26 +548,45 @@ async function writeReportToSheet(
       totalCommission: 0,
       totalBenefit: 0,
     };
-    let dataTotal = existingData.slice(2);
-    if (dataTotal && dataTotal.length > 0) {
-      dataTotal = dataTotal[0];
-      let indexTotalColumn = 1;
-      while (indexTotalColumn < dataTotal.length) {
-        totalData.totalSpend += fnumber(dataTotal[indexTotalColumn] || "0");
-        totalData.totalClicks += fnumber(
-          dataTotal[indexTotalColumn + 1] || "0"
-        );
-        totalData.totalCommission += fnumber(
-          dataTotal[indexTotalColumn + 2] || "0"
-        );
-        totalData.totalBenefit += fnumber(
-          dataTotal[indexTotalColumn + 3] || "0"
-        );
-        indexTotalColumn += 6;
+    let dataTotalStoreWrites = [];
+    existingData.slice(2).forEach((row) => {
+      const dataTotalStore = {
+        totalSpend: 0,
+        totalClicks: 0,
+        totalCommission: 0,
+        totalBenefit: 0,
+      };
+      let index = 1;
+      while (index < row.length) {
+        dataTotalStore.totalSpend += fnumber(row[index] || "0");
+        dataTotalStore.totalClicks += fnumber(row[index + 1] || "0");
+        dataTotalStore.totalCommission += fnumber(row[index + 2] || "0");
+        dataTotalStore.totalBenefit += fnumber(row[index + 3] || "0");
+        index += 6;
       }
-    }
-
-    const startWriteRow = 2;
+      dataTotalStoreWrites.push([
+        dataTotalStore.totalSpend,
+        dataTotalStore.totalClicks,
+        dataTotalStore.totalCommission,
+        dataTotalStore.totalBenefit,
+      ]);
+      totalData.totalSpend += dataTotalStore.totalSpend;
+      totalData.totalClicks += dataTotalStore.totalClicks;
+      totalData.totalCommission += dataTotalStore.totalCommission;
+      totalData.totalBenefit += dataTotalStore.totalBenefit;
+    });
+    dataTotalStoreWrites.unshift(
+      ...[
+        ["Tổng", "", "", ""],
+        [
+          totalData.totalSpend,
+          totalData.totalClicks,
+          totalData.totalCommission,
+          totalData.totalBenefit,
+        ],
+      ]
+    );
+    const startWriteRow = 0;
 
     // Get store existed from A3 -> bottom, excluding any existing "TỔNG" entries
     const existingStores = existingData
@@ -577,8 +596,8 @@ async function writeReportToSheet(
       .filter((storeName) => storeName !== "TỔNG" && storeName !== "TỔNG CỘNG");
 
     // Find the next available column (looking for groups of 6 columns: B-G, H-M, N-S, etc.)
-    let nextColumnStart = "B"; // Start from column B
-    let colIndex = 1; // B = index 1
+    let nextColumnStart = "F"; // Start from column F
+    let colIndex = 5; // F = index 5
 
     if (existingData.length > 0) {
       while (true) {
@@ -611,7 +630,7 @@ async function writeReportToSheet(
 
     // Calculate required dimensions
     const requiredRows = Math.max(stores.length + 3, 10); // +3 for header rows + summary row, minimum 10
-    const requiredColumns = getColumnIndex(nextColumnStart) + 6; // 6 columns for this report
+    const requiredColumns = getColumnIndex(nextColumnStart) + 12; // 6 columns for this report
 
     console.log(
       `Required dimensions: ${requiredRows} rows, ${requiredColumns} columns`
@@ -757,26 +776,16 @@ async function writeReportToSheet(
       startWriteRow + 1
     }:${endCol}${startWriteRow + 1 + dataToWrite.length}`;
 
+    await googleSheetsService.writeSheetValues(
+      spreadsheetId,
+      `${sheetName}!B1:E${dataTotalStoreWrites.length + 1}`,
+      dataTotalStoreWrites
+    );
     console.log(`Writing data to range: ${dataRange}`);
     await googleSheetsService.writeSheetValues(
       spreadsheetId,
       dataRange,
       dataToWrite
-    );
-
-    await googleSheetsService.writeSheetValues(
-      spreadsheetId,
-      `${sheetName}!A1:E2`,
-      [
-        ["", "Số Tiền Chạy(VNĐ)", "Click", "CĐ", "Tiền Hoa Hồng ($)"],
-        [
-          "TỔNG CỘNG",
-          totalData.totalSpend,
-          totalData.totalClicks,
-          totalData.totalCommission,
-          totalData.totalBenefit,
-        ],
-      ]
     );
 
     // Merge the date header cells (row 1, columns across 6 columns)
@@ -829,18 +838,15 @@ async function writeReportToSheet(
         borderFormat
       );
 
-      // Also apply borders to store names column (column A) if this is the first report
-      if (nextColumnStart === "B") {
-        await googleSheetsService.formatCells(
-          spreadsheetId,
-          numericSheetId,
-          0,
-          storeNamesData.length, // All rows with store names
-          0, // Start column index
-          5, // End column index (exclusive)
-          borderFormat
-        );
-      }
+      await googleSheetsService.formatCells(
+        spreadsheetId,
+        numericSheetId,
+        0,
+        storeNamesData.length, // All rows with store names
+        0, // Start column index
+        endColIndex, // End column index (exclusive)
+        borderFormat
+      );
 
       await googleSheetsService.mergeCells(
         spreadsheetId,
@@ -849,6 +855,16 @@ async function writeReportToSheet(
         startWriteRow + 1, // End row index (row 2 = index 1, exclusive)
         startColIndex, // Start column index
         endColIndex, // End column index (exclusive)
+        "MERGE_ALL"
+      );
+
+      await googleSheetsService.mergeCells(
+        spreadsheetId,
+        numericSheetId, // Use validated numeric sheet ID
+        0, // Start row index (row 1 = index 0)
+        1, // End row index (row 2 = index 1, exclusive)
+        1, // Start column index
+        5, // End column index (exclusive)
         "MERGE_ALL"
       );
       console.log(
