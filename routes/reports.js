@@ -149,8 +149,7 @@ router.post("/test-data-connection", async (req, res) => {
 
     for (const [index, pair] of config.urlPairs.entries()) {
       console.log(
-        `Testing data connection for pair ${index + 1}/${
-          config.urlPairs.length
+        `Testing data connection for pair ${index + 1}/${config.urlPairs.length
         }`
       );
 
@@ -304,8 +303,7 @@ router.post("/generate", async (req, res) => {
         }
       } catch (sheetError) {
         console.warn(
-          `Warning: Could not get sheet name for pair ${
-            index + 1
+          `Warning: Could not get sheet name for pair ${index + 1
           }, using default`
         );
       }
@@ -533,8 +531,8 @@ async function writeReportToSheet(
     try {
       existingData = await googleSheetsService.readSheetValues(
         spreadsheetId,
-        `${sheetName}!A:CV`
-      ); // Read up to column CV (100 columns)
+        `${sheetName}`
+      );
     } catch (readError) {
       console.warn(
         `Warning: Could not read existing data, starting fresh: ${readError.message}`
@@ -542,55 +540,35 @@ async function writeReportToSheet(
       existingData = [];
     }
     existingData = existingData.slice(2);
-    const totalData = {
-      totalSpend: 0,
-      totalClicks: 0,
-      totalCommission: 0,
-      totalBenefit: 0,
-    };
-    let dataTotalStoreWrites = [];
-    existingData.slice(2).forEach((row) => {
-      const dataTotalStore = {
-        totalSpend: 0,
-        totalClicks: 0,
-        totalCommission: 0,
-        totalBenefit: 0,
-      };
-      let index = 1;
-      while (index < row.length) {
-        dataTotalStore.totalSpend += fnumber(row[index] || "0");
-        dataTotalStore.totalClicks += fnumber(row[index + 1] || "0");
-        dataTotalStore.totalCommission += fnumber(row[index + 2] || "0");
-        dataTotalStore.totalBenefit += fnumber(row[index + 3] || "0");
-        index += 6;
-      }
-      dataTotalStoreWrites.push([
-        dataTotalStore.totalSpend,
-        dataTotalStore.totalClicks,
-        dataTotalStore.totalCommission,
-        dataTotalStore.totalBenefit,
-      ]);
-      totalData.totalSpend += dataTotalStore.totalSpend;
-      totalData.totalClicks += dataTotalStore.totalClicks;
-      totalData.totalCommission += dataTotalStore.totalCommission;
-      totalData.totalBenefit += dataTotalStore.totalBenefit;
-    });
-    dataTotalStoreWrites.unshift(
-      ...[
-        ["Tổng", "", "", ""],
-        [
-          totalData.totalSpend,
-          totalData.totalClicks,
-          totalData.totalCommission,
-          totalData.totalBenefit,
-        ],
-      ]
-    );
+    let dataTotalStoreWrites = new Map();
+    if (existingData.length > 0) {
+      existingData.slice(1).forEach((row) => {
+        const dataTotalStore = {
+          totalSpend: 0,
+          totalClicks: 0,
+          totalCommission: 0,
+          totalBenefit: 0,
+        };
+        let index = 5;
+        while (index < row.length) {
+          dataTotalStore.totalSpend += fnumber(row[index] || "0");
+          dataTotalStore.totalClicks += fnumber(row[index + 1] || "0");
+          dataTotalStore.totalCommission += fnumber(row[index + 2] || "0");
+          dataTotalStore.totalBenefit += fnumber(row[index + 3] || "0");
+          index += 6;
+        }
+        dataTotalStoreWrites.set(row[0], {
+          totalSpend: dataTotalStore.totalSpend,
+          totalClicks: dataTotalStore.totalClicks,
+          totalCommission: dataTotalStore.totalCommission,
+          totalBenefit: dataTotalStore.totalBenefit,
+        });
+      });
+    }
     const startWriteRow = 0;
 
     // Get store existed from A3 -> bottom, excluding any existing "TỔNG" entries
     const existingStores = existingData
-      .slice(2)
       .map((row) => row[0])
       .filter(Boolean)
       .filter((storeName) => storeName !== "TỔNG" && storeName !== "TỔNG CỘNG");
@@ -627,6 +605,10 @@ async function writeReportToSheet(
         (store) => !existingStores.includes(store)
       ),
     ];
+    console.log("xxxx", ...existingStores, Object.keys(reportData).filter(
+      (store) => !existingStores.includes(store)
+    ));
+
 
     // Calculate required dimensions
     const requiredRows = Math.max(stores.length + 3, 10); // +3 for header rows + summary row, minimum 10
@@ -697,11 +679,6 @@ async function writeReportToSheet(
       "",
     ]);
 
-    totalData.totalSpend += totalSpend;
-    totalData.totalClicks += totalClicks;
-    totalData.totalCommission += totalCommission;
-    totalData.totalBenefit += totalBenefit;
-
     // Rows 4+: Store data with change calculation
     stores.forEach((storeName) => {
       const storeData = reportData[storeName];
@@ -746,12 +723,25 @@ async function writeReportToSheet(
           changeIndicator,
           storeData.runner,
         ]);
+        const summaryStore = dataTotalStoreWrites.get(storeName);
+        if (summaryStore) {
+          summaryStore.totalSpend += storeData.totalSpend;
+          summaryStore.totalClicks += storeData.totalClicks;
+          summaryStore.totalCommission += storeData.totalCommission;
+          summaryStore.totalBenefit += storeData.totalBenefit;
+        } else {
+          dataTotalStoreWrites.set(storeName, {
+            totalSpend: storeData.totalSpend,
+            totalClicks: storeData.totalClicks,
+            totalCommission: storeData.totalCommission,
+            totalBenefit: storeData.totalBenefit,
+            runner: storeData.runner,
+          });
+        }
       }
     });
 
     const storeNamesData = [];
-    storeNamesData.push([""]); // A1 empty
-    storeNamesData.push([""]); // A2 empty
     storeNamesData.push([""]); // A1 empty
     storeNamesData.push([""]); // A2 empty
     // Add summary row label at the top
@@ -762,7 +752,6 @@ async function writeReportToSheet(
 
     // Write store names in column A
     const storeNamesRange = `${sheetName}!A1:A${storeNamesData.length}`;
-    console.log(`Writing store names to range: ${storeNamesRange}`);
 
     await googleSheetsService.writeSheetValues(
       spreadsheetId,
@@ -772,15 +761,32 @@ async function writeReportToSheet(
 
     // Write the report data starting from the determined column
     const endCol = getColumnLetter(getColumnIndex(nextColumnStart) + 5); // 6 columns total (0-5)
-    const dataRange = `${sheetName}!${nextColumnStart}${
-      startWriteRow + 1
-    }:${endCol}${startWriteRow + 1 + dataToWrite.length}`;
-
+    const dataRange = `${sheetName}!${nextColumnStart}${startWriteRow + 1
+      }:${endCol}${startWriteRow + 1 + dataToWrite.length}`;
+    const dataTotalStoreWritesList = [
+      ["Tổng", "", "", ""],
+      ["Số Tiền Chạy(VNĐ)", "Click", "CĐ", "Tiền Hoa Hồng ($)"],
+    ];
+    const dataTotalStoreWritesSummary = {
+      totalSpend: 0,
+      totalClicks: 0,
+      totalCommission: 0,
+      totalBenefit: 0,
+    }
+    dataTotalStoreWrites.forEach((value, key) => {
+      dataTotalStoreWritesList.push([value.totalSpend, value.totalClicks, value.totalCommission, value.totalBenefit]);
+      dataTotalStoreWritesSummary.totalSpend += value.totalSpend;
+      dataTotalStoreWritesSummary.totalClicks += value.totalClicks;
+      dataTotalStoreWritesSummary.totalCommission += value.totalCommission;
+      dataTotalStoreWritesSummary.totalBenefit += value.totalBenefit;
+    });
+    dataTotalStoreWritesList.splice(2, 0, [dataTotalStoreWritesSummary.totalSpend, dataTotalStoreWritesSummary.totalClicks, dataTotalStoreWritesSummary.totalCommission, dataTotalStoreWritesSummary.totalBenefit]);
     await googleSheetsService.writeSheetValues(
       spreadsheetId,
-      `${sheetName}!B1:E${dataTotalStoreWrites.length + 1}`,
-      dataTotalStoreWrites
+      `${sheetName}!B1:E${dataTotalStoreWritesList.length + 1}`,
+      dataTotalStoreWritesList
     );
+
     console.log(`Writing data to range: ${dataRange}`);
     await googleSheetsService.writeSheetValues(
       spreadsheetId,
@@ -893,7 +899,7 @@ async function writeReportToSheet(
         numericSheetId,
         startWriteRow, // Row 2 (headers)
         startWriteRow + 3, // End at row 2 (exclusive)
-        startColIndex, // Start column index
+        1, // Start column index
         endColIndex, // End column index (exclusive)
         headerFormat
       );
@@ -946,23 +952,10 @@ async function writeReportToSheet(
         numericSheetId,
         summaryRowIndex, // Summary row
         summaryRowIndex + 1, // End at summary row (exclusive)
-        startColIndex, // Start column index
+        1, // Start column index
         endColIndex, // End column index (exclusive)
         summaryFormat
       );
-
-      // Also format the summary label in column A
-      if (nextColumnStart === "B") {
-        await googleSheetsService.formatCells(
-          spreadsheetId,
-          numericSheetId,
-          summaryRowIndex, // Summary row
-          summaryRowIndex + 1, // End at summary row (exclusive)
-          0, // Column A (index 0)
-          1, // Column A only (exclusive end)
-          summaryFormat
-        );
-      }
 
       console.log(
         `Successfully applied borders and center formatting to all columns`
@@ -1138,9 +1131,8 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
         `Updating existing grand total row at index ${grandTotalRowIndex}`
       );
       // Update the existing grand total row
-      const grandTotalUpdateRange = `${sheetName}!A${grandTotalRowIndex + 1}:G${
-        grandTotalRowIndex + 1
-      }`;
+      const grandTotalUpdateRange = `${sheetName}!A${grandTotalRowIndex + 1}:G${grandTotalRowIndex + 1
+        }`;
       const grandTotalUpdateData = [
         [
           "",
@@ -1358,8 +1350,7 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
             );
 
             console.log(
-              `Created row grouping for date ${targetDate} from rows ${
-                dateRowIndex + 1
+              `Created row grouping for date ${targetDate} from rows ${dateRowIndex + 1
               } to ${lastDetailRowIndex}`
             );
           }
