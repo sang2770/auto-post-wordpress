@@ -148,13 +148,12 @@ class AdsMappingService {
                     // Add update for clicks column
                     updates.push({
                         range: `${destinationSheetName}!${clicksColumn}${rowNumber}`,
-                        values: [[adsInfo.clicks + this.parseNumber(this.getColumnValue(row, storeNameColumn, clicksColumn) || 0)]]
+                        values: [[adsInfo.clicks]]
                     });
-                    const moneyData = this.parseNumber(this.getColumnValue(row, storeNameColumn, moneyColumn) || 0);
-                    let money = adsInfo.money + moneyData;
+                    let money = adsInfo.money;
                     if (adsInfo.unitMoney && adsInfo.unitMoney.toLowerCase() === 'usd') {
                         console.log(`Converting USD to local currency for store: ${normalizedDestName}, original money: ${money}, rate: ${dollarPrice}`);
-                        money = adsInfo.money * dollarPrice + moneyData;
+                        money = adsInfo.money * dollarPrice;
                     }
                     updates.push({
                         range: `${destinationSheetName}!${moneyColumn}${rowNumber}`,
