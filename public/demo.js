@@ -93,7 +93,7 @@ function exportCampaignsToSheet(accountId, accountName, target) {
 
     var report = AdsApp.report(query);
     var rows = report.rows();
-    var today = Utilities.formatDate(new Date(), AdsApp.currentAccount().getTimeZone(), "yyyy-MM-dd");
+    var yesterday = Utilities.formatDate(new Date(Date.now() - 86400000), AdsApp.currentAccount().getTimeZone(), "yyyy-MM-dd");
 
     var count = 0;
     while (rows.hasNext()) {
@@ -104,7 +104,7 @@ function exportCampaignsToSheet(accountId, accountName, target) {
         var cost = parseInt(row['metrics.cost_micros']) / 1000000;
         var currency = row['customer.currency_code'];
 
-        target.appendRow([today, campaignId, campaignName, clicks, cost, currency]);
+        target.appendRow([yesterday, campaignId, campaignName, clicks, cost, currency]);
         count++;
     }
 
