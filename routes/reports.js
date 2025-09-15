@@ -358,7 +358,9 @@ async function writeReportToSheet(
   reportUrl,
   reportData,
   targetDate,
-  pairIndex = 0
+  pairIndex = 0,
+  dataUrl = null,
+  rawData = null
 ) {
   try {
     const spreadsheetId = googleSheetsService.extractSheetId(reportUrl);
@@ -519,20 +521,6 @@ async function writeReportToSheet(
 
     // Track stores with changes for summary
     const changedStoresData = [];
-
-    // Calculate totals from all stores
-    // stores.forEach((storeName) => {
-    //   const storeData = reportData[storeName];
-    //   if (storeData) {
-    //     totalSpend += storeData.totalSpend;
-    //     totalClicks += storeData.totalClicks;
-    //     totalCommission += storeData.totalCommission;
-    //     totalBenefit += storeData.totalBenefit;
-    //   }
-    // });
-
-
-
     // Rows 4+: Store data with change calculation
     stores.forEach((storeName) => {
       const storeData = reportData[storeName];
@@ -656,6 +644,77 @@ async function writeReportToSheet(
       `${sheetName}!B1:E${dataTotalStoreWritesList.length + 1}`,
       dataTotalStoreWritesList
     );
+
+    // Write total data to urlData from Z column
+    if (dataUrl && rawData) {
+      const summaryByStoreMapClone = new Map(dataTotalStoreWrites);
+      const sourceSummaryData = [];
+      rawData.forEach((row, index) => {
+        const storeName = row[3];
+        if (!storeName || index <= 1) {
+          return;
+        }
+        const item = summaryByStoreMapClone.get(storeName);
+        if (item) {
+          sourceSummaryData.push([
+            item.totalSpend,
+            item.totalClicks,
+            item.totalCommission,
+            item.totalBenefit,
+          ]);
+          summaryByStoreMapClone.delete(storeName);
+        } else {
+          sourceSummaryData.push([
+            0,
+            0,
+            0,
+            0,
+          ]);
+        }
+      });
+      sourceSummaryData.unshift(...[
+        [
+          "Tổng Tiền Chạy(VNĐ)",
+          "Tổng Click",
+          "Tổng CĐ",
+          "Tổng Tiền Hoa Hồng ($)",
+        ],
+        [
+          dataTotalStoreWritesSummary.totalSpend,
+          dataTotalStoreWritesSummary.totalClicks,
+          dataTotalStoreWritesSummary.totalCommission,
+          dataTotalStoreWritesSummary.totalBenefit,
+        ]
+      ]);
+      const dataUrlSpreadsheetId = googleSheetsService.extractSheetId(dataUrl);
+      const dataUrlGid = googleSheetsService.extractGid(dataUrl);
+      const dataUrlSheetName =
+        (await googleSheetsService.getInfoSheetsFromUrl(dataUrl)).sheets?.find(
+          (sheet) => sheet.properties?.sheetId == dataUrlGid
+        )?.properties?.title || "Sheet1";
+      const dataUrlRange = `${dataUrlSheetName}!Z1:AC${sourceSummaryData.length}`;
+      console.log(`Writing summary data back to data URL at range: ${dataUrlRange}`);
+      await googleSheetsService.writeSheetValues(
+        dataUrlSpreadsheetId,
+        dataUrlRange,
+        sourceSummaryData
+      );
+      // format number for summary columns
+      await googleSheetsService.formatCells(
+        dataUrlSpreadsheetId,
+        dataUrlGid, // Use validated numeric sheet ID
+        1, // Start from row 1 (headers)
+        sourceSummaryData.length, // End at the last data row
+        25, // Column Z index
+        29, // Column AC index (exclusive)
+        {
+          numberFormat: {
+            type: "NUMBER",
+            pattern: "#,##0",
+          },
+        }
+      );
+    }
 
     console.log(`Writing data to range: ${dataRange}`);
     await googleSheetsService.writeSheetValues(
@@ -1301,7 +1360,9 @@ async function generateReport(targetDate) {
         pair.reportUrl,
         reportData,
         targetDate,
-        index
+        index,
+        pair.dataUrl,
+        rawData
       );
 
       // Calculate totals for this pair only from stores with changes (changeIndicator != "")
