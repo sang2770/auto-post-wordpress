@@ -758,8 +758,8 @@ cron.schedule('0 2 * * *', generateDailyReport, {
     timezone: 'Asia/Bangkok' // UTC+7
 });
 
-// Schedule ads mapping refresh at 0:00 AM UTC+7
-cron.schedule('0 0 * * *', async () => {
+// Schedule ads mapping refresh at 0:02 AM UTC+7
+cron.schedule('2 0 * * *', async () => {
     try {
         await handleExecute();
     } catch (error) {
