@@ -89,7 +89,7 @@ function exportCampaignsToSheet(accountId, accountName, target) {
     var query =
         "SELECT campaign.id, campaign.name, metrics.clicks, metrics.cost_micros, customer.currency_code " +
         "FROM campaign " +
-        "WHERE segments.date DURING TODAY AND metrics.clicks > 0";
+        "WHERE segments.date DURING YESTERDAY AND metrics.clicks > 0";
 
     var report = AdsApp.report(query);
     var rows = report.rows();
