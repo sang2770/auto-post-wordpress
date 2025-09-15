@@ -751,12 +751,12 @@ const pollingInterval = process.env.POLLING_INTERVAL || 5;
 cron.schedule(`*/${pollingInterval} * * * *`, checkForChanges);
 
 // Schedule daily report generation at 2:00 AM UTC+7
-cron.schedule('0 2 * * *', generateDailyReport, {
+cron.schedule('0 3 * * *', generateDailyReport, {
     timezone: 'Asia/Bangkok' // UTC+7
 });
 
 // Schedule ads mapping refresh at 1:00 AM UTC+7
-cron.schedule('0 1 * * *', async () => {
+cron.schedule('0 2 * * *', async () => {
     try {
         await handleExecute();
     } catch (error) {
