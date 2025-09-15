@@ -11,7 +11,7 @@ const StorageService = require('./services/storageService');
 
 // Import routers
 const reportsRouter = require('./routes/reports');
-const {adsMappingRouter, handleExecute} = require('./routes/adsMapping');
+const { adsMappingRouter, handleExecute } = require('./routes/adsMapping');
 const emailRegistrationRouter = require('./routes/emailRegistration');
 
 // Load environment variables
@@ -716,7 +716,7 @@ async function generateDailyReport() {
         const config = await storageService.getConfig();
 
         // Check if report configuration exists
-        if (!config?.dataUrl || !config?.reportUrl) {
+        if (!config?.urlPairs || config.urlPairs.length === 0) {
             console.log('No report configuration found, skipping daily report generation');
             return;
         }
@@ -728,21 +728,18 @@ async function generateDailyReport() {
 
         console.log(`Generating daily report for date: ${targetDate} (UTC+7)`);
 
-        // Fetch data from the data sheet
-        const rawData = await googleSheetsService.fetchReportData(config.dataUrl);
+        // Import and call the function directly
+        const { generateReport } = require('./routes/reports');
+        const result = await generateReport(targetDate);
 
-        // Import the functions from reports route
-        const { processDataByStore, writeReportToSheet } = require('./routes/reports');
-
-        // Process data by store
-        const reportData = processDataByStore(rawData);
-
-        // Write report to the report sheet
-        await writeReportToSheet(config.reportUrl, reportData, targetDate);
-
-        console.log(`Daily report generated successfully for ${targetDate}`);
-        console.log(`Stores processed: ${Object.keys(reportData).length}`);
-        console.log(`Total records processed from sheet: ${rawData.length}`);
+        if (result.success) {
+            console.log(`Daily report generated successfully for ${targetDate}`);
+            console.log(`Total pairs processed: ${result.totalPairsProcessed}`);
+            console.log(`Total stores processed: ${result.totalStoresProcessed}`);
+            console.log(`Total records: ${result.totalRecords}`);
+        } else {
+            console.error(`Failed to generate daily report: ${result.error || 'Unknown error'}`);
+        }
 
     } catch (error) {
         console.error('Error generating daily report:', error);

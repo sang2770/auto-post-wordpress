@@ -213,150 +213,15 @@ router.post("/test-data-connection", async (req, res) => {
 router.post("/generate", async (req, res) => {
   try {
     const { date } = req.body;
-    const targetDate = date || new Date().toISOString().split("T")[0]; // Today in YYYY-MM-DD format
+    const result = await generateReport(date);
 
-    const config = await storageService.getConfig();
-    if (!config?.urlPairs || config.urlPairs.length === 0) {
-      return res.status(400).json({
-        error:
-          "Report URLs not configured. Please configure data and report URLs first.",
-      });
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json({ error: result.error });
     }
-
-    console.log(`Generating report for date: ${targetDate}`);
-
-    // Process each URL pair
-    const results = [];
-    const summaryData = [];
-    const allReportData = {}; // Collect all report data for saving
-
-    for (const [index, pair] of config.urlPairs.entries()) {
-      console.log(`Processing URL pair ${index + 1}/${config.urlPairs.length}`);
-
-      // Fetch data from the data sheet
-      const rawData = await googleSheetsService.fetchReportData(pair.dataUrl);
-
-      // Filter data by date and process by store
-      const reportData = processDataByStore(rawData, targetDate);
-
-      // Store this pair's report data for later saving
-      allReportData[`pair_${index}`] = {
-        pairIndex: index,
-        dataUrl: pair.dataUrl,
-        reportUrl: pair.reportUrl,
-        reportData: reportData,
-      };
-
-      // Write report to the report sheet to get change information
-      const result = await writeReportToSheet(
-        pair.reportUrl,
-        reportData,
-        targetDate,
-        index
-      );
-
-      // Calculate totals for this pair only from stores with changes (changeIndicator != "")
-      const pairTotals = {
-        totalSpend: 0,
-        totalClicks: 0,
-        totalCommission: 0,
-        totalBenefit: 0,
-      };
-
-      // Sum only from stores that have change indicators
-      if (result.changedStoresData && result.changedStoresData.length > 0) {
-        result.changedStoresData.forEach((storeData) => {
-          pairTotals.totalSpend += storeData.totalSpend;
-          pairTotals.totalClicks += storeData.totalClicks;
-          pairTotals.totalCommission += storeData.totalCommission;
-          pairTotals.totalBenefit += storeData.totalBenefit;
-        });
-      }
-
-      results.push({
-        pairIndex: index,
-        dataUrl: pair.dataUrl,
-        reportUrl: pair.reportUrl,
-        storesProcessed: Object.keys(reportData).length,
-        changedStores: result.changedStoresData
-          ? result.changedStoresData.length
-          : 0,
-        totalRecords: Object.values(reportData).reduce(
-          (sum, store) => sum + store.records.length,
-          0
-        ),
-        ...pairTotals,
-        ...result,
-      });
-
-      let sheetName = "Sheet1"; // Default fallback
-      try {
-        const dataSpreadsheet = await googleSheetsService.getInfoSheetsFromUrl(
-          pair.dataUrl
-        );
-        const dataGid = googleSheetsService.extractGid(pair.dataUrl);
-        const dataSheet = dataSpreadsheet.sheets?.find(
-          (sheet) => sheet.properties?.sheetId == dataGid
-        );
-        if (dataSheet?.properties?.title) {
-          sheetName = dataSheet.properties.title;
-        }
-      } catch (sheetError) {
-        console.warn(
-          `Warning: Could not get sheet name for pair ${index + 1
-          }, using default`
-        );
-      }
-
-      // Add to summary data
-      summaryData.push({
-        pairIndex: index,
-        reportUrl: pair.reportUrl,
-        dataUrl: pair.dataUrl,
-        sheetName: sheetName,
-        ...pairTotals,
-      });
-    }
-
-    // Generate summary report if configured
-    if (config.summaryReportUrl) {
-      try {
-        await writeSummaryReport(
-          config.summaryReportUrl,
-          summaryData,
-          targetDate
-        );
-        console.log("Summary report generated successfully");
-      } catch (summaryError) {
-        console.error("Error generating summary report:", summaryError);
-        // Don't fail the entire operation if summary fails
-      }
-    }
-
-    // Save all report data for future comparison
-    try {
-      await storageService.saveLastReport(allReportData);
-      console.log(
-        "Successfully saved all pairs report data for future comparison"
-      );
-    } catch (saveError) {
-      console.warn(`Warning: Could not save report data: ${saveError.message}`);
-    }
-
-    res.json({
-      success: true,
-      message: `Report generated successfully for ${targetDate}`,
-      date: targetDate,
-      results,
-      totalPairsProcessed: results.length,
-      totalStoresProcessed: results.reduce(
-        (sum, r) => sum + r.storesProcessed,
-        0
-      ),
-      totalRecords: results.reduce((sum, r) => sum + r.totalRecords, 0),
-    });
   } catch (error) {
-    console.error("Error generating report:", error);
+    console.error("Error in report generation API endpoint:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1394,7 +1259,159 @@ async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
   }
 }
 
+// Direct function for generating reports (can be called without HTTP request)
+async function generateReport(targetDate) {
+  try {
+    targetDate = targetDate || new Date().toISOString().split("T")[0]; // Today in YYYY-MM-DD format
+
+    const config = await storageService.getConfig();
+    if (!config?.urlPairs || config.urlPairs.length === 0) {
+      return {
+        success: false,
+        error: "Report URLs not configured. Please configure data and report URLs first."
+      };
+    }
+
+    console.log(`Generating report for date: ${targetDate}`);
+
+    // Process each URL pair
+    const results = [];
+    const summaryData = [];
+    const allReportData = {}; // Collect all report data for saving
+
+    for (const [index, pair] of config.urlPairs.entries()) {
+      console.log(`Processing URL pair ${index + 1}/${config.urlPairs.length}`);
+
+      // Fetch data from the data sheet
+      const rawData = await googleSheetsService.fetchReportData(pair.dataUrl);
+
+      // Filter data by date and process by store
+      const reportData = processDataByStore(rawData, targetDate);
+
+      // Store this pair's report data for later saving
+      allReportData[`pair_${index}`] = {
+        pairIndex: index,
+        dataUrl: pair.dataUrl,
+        reportUrl: pair.reportUrl,
+        reportData: reportData,
+      };
+
+      // Write report to the report sheet to get change information
+      const result = await writeReportToSheet(
+        pair.reportUrl,
+        reportData,
+        targetDate,
+        index
+      );
+
+      // Calculate totals for this pair only from stores with changes (changeIndicator != "")
+      const pairTotals = {
+        totalSpend: 0,
+        totalClicks: 0,
+        totalCommission: 0,
+        totalBenefit: 0,
+      };
+
+      // Sum only from stores that have change indicators
+      if (result.changedStoresData && result.changedStoresData.length > 0) {
+        result.changedStoresData.forEach((storeData) => {
+          pairTotals.totalSpend += storeData.totalSpend;
+          pairTotals.totalClicks += storeData.totalClicks;
+          pairTotals.totalCommission += storeData.totalCommission;
+          pairTotals.totalBenefit += storeData.totalBenefit;
+        });
+      }
+
+      results.push({
+        pairIndex: index,
+        dataUrl: pair.dataUrl,
+        reportUrl: pair.reportUrl,
+        storesProcessed: Object.keys(reportData).length,
+        changedStores: result.changedStoresData
+          ? result.changedStoresData.length
+          : 0,
+        totalRecords: Object.values(reportData).reduce(
+          (sum, store) => sum + store.records.length,
+          0
+        ),
+        ...pairTotals,
+        ...result,
+      });
+
+      let sheetName = "Sheet1"; // Default fallback
+      try {
+        const dataSpreadsheet = await googleSheetsService.getInfoSheetsFromUrl(
+          pair.dataUrl
+        );
+        const dataGid = googleSheetsService.extractGid(pair.dataUrl);
+        const dataSheet = dataSpreadsheet.sheets?.find(
+          (sheet) => sheet.properties?.sheetId == dataGid
+        );
+        if (dataSheet?.properties?.title) {
+          sheetName = dataSheet.properties.title;
+        }
+      } catch (sheetError) {
+        console.warn(
+          `Warning: Could not get sheet name for pair ${index + 1
+          }, using default`
+        );
+      }
+
+      // Add to summary data
+      summaryData.push({
+        pairIndex: index,
+        reportUrl: pair.reportUrl,
+        dataUrl: pair.dataUrl,
+        sheetName: sheetName,
+        ...pairTotals,
+      });
+    }
+
+    // Generate summary report if configured
+    if (config.summaryReportUrl) {
+      try {
+        await writeSummaryReport(
+          config.summaryReportUrl,
+          summaryData,
+          targetDate
+        );
+        console.log("Summary report generated successfully");
+      } catch (summaryError) {
+        console.error("Error generating summary report:", summaryError);
+        // Don't fail the entire operation if summary fails
+      }
+    }
+
+    // Save all report data for future comparison
+    try {
+      await storageService.saveLastReport(allReportData);
+      console.log(
+        "Successfully saved all pairs report data for future comparison"
+      );
+    } catch (saveError) {
+      console.warn(`Warning: Could not save report data: ${saveError.message}`);
+    }
+
+    return {
+      success: true,
+      message: `Report generated successfully for ${targetDate}`,
+      date: targetDate,
+      results,
+      totalPairsProcessed: results.length,
+      totalStoresProcessed: results.reduce(
+        (sum, r) => sum + r.storesProcessed,
+        0
+      ),
+      totalRecords: results.reduce((sum, r) => sum + r.totalRecords, 0),
+    };
+  } catch (error) {
+    console.error("Error generating report:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = router;
 module.exports.writeReportToSheet = writeReportToSheet;
 module.exports.processDataByStore = processDataByStore;
 module.exports.writeSummaryReport = writeSummaryReport;
+module.exports.generateReport = generateReport;
