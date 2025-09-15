@@ -753,8 +753,8 @@ async function generateDailyReport() {
 const pollingInterval = process.env.POLLING_INTERVAL || 5;
 cron.schedule(`*/${pollingInterval} * * * *`, checkForChanges);
 
-// Schedule daily report generation at 2:00 AM UTC+7
-cron.schedule('0 2 * * *', generateDailyReport, {
+// Schedule daily report generation at 0:30 AM UTC+7
+cron.schedule('30 0 * * *', generateDailyReport, {
     timezone: 'Asia/Bangkok' // UTC+7
 });
 
