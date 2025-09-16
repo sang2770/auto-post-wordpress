@@ -59,9 +59,8 @@ router.post("/config", async (req, res) => {
 
       if (!name || !destinationUrl || (!hasSourceUrls && !hasSourceEmails)) {
         return res.status(400).json({
-          error: `Name, destination URL and at least one source (URL or email) are required for group ${
-            i + 1
-          }`,
+          error: `Name, destination URL and at least one source (URL or email) are required for group ${i + 1
+            }`,
         });
       }
 
@@ -250,7 +249,7 @@ async function handleExecute() {
 router.post("/execute", async (req, res) => {
   try {
     const results = await handleExecute();
-
+    const config = await storageService.getConfig();
     const successCount = results.filter((r) => r.success).length;
     const failureCount = results.filter((r) => !r.success).length;
 

@@ -304,6 +304,7 @@ function processDataByStore(rawData, targetDate) {
     // Get store name (try different possible column names)
     const storeName = row[3];
     if (!storeName || index <= 1) {
+      console.log(`Skipping row ${index + 1} due to missing store name or header row`, row);
       return;
     }
     const spend = parseDataNumber(row[14] || "0");
@@ -835,7 +836,7 @@ async function writeReportToSheet(
 }
 
 // Write summary report data to Google Sheets
-async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {  
+async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
   try {
     const spreadsheetId = googleSheetsService.extractSheetId(summaryReportUrl);
     const gid = googleSheetsService.extractGid(summaryReportUrl);
