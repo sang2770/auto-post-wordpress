@@ -358,9 +358,7 @@ async function writeReportToSheet(
   reportUrl,
   reportData,
   targetDate,
-  pairIndex = 0,
-  dataUrl = null,
-  rawData = null
+  pairIndex = 0
 ) {
   try {
     const spreadsheetId = googleSheetsService.extractSheetId(reportUrl);
@@ -408,31 +406,7 @@ async function writeReportToSheet(
       existingData = [];
     }
     existingData = existingData.slice(2);
-    let dataTotalStoreWrites = new Map();
-    if (existingData.length > 0) {
-      existingData.slice(1).forEach((row) => {
-        const dataTotalStore = {
-          totalSpend: 0,
-          totalClicks: 0,
-          totalCommission: 0,
-          totalBenefit: 0,
-        };
-        let index = 5;
-        while (index < row.length) {
-          dataTotalStore.totalSpend += fnumber(row[index] || "0");
-          dataTotalStore.totalClicks += fnumber(row[index + 1] || "0");
-          dataTotalStore.totalCommission += fnumber(row[index + 2] || "0");
-          dataTotalStore.totalBenefit += fnumber(row[index + 3] || "0");
-          index += 6;
-        }
-        dataTotalStoreWrites.set(row[0], {
-          totalSpend: dataTotalStore.totalSpend,
-          totalClicks: dataTotalStore.totalClicks,
-          totalCommission: dataTotalStore.totalCommission,
-          totalBenefit: dataTotalStore.totalBenefit,
-        });
-      });
-    }
+    const totalExistedData = existingData[0];
     const startWriteRow = 0;
 
     // Get store existed from A3 -> bottom, excluding any existing "TỔNG" entries
@@ -522,16 +496,32 @@ async function writeReportToSheet(
     // Track stores with changes for summary
     const changedStoresData = [];
     // Rows 4+: Store data with change calculation
+    const dataTotalStoreWritesSummary = {
+      totalSpend: 0,
+      totalClicks: 0,
+      totalCommission: 0,
+      totalBenefit: 0,
+    }
+    const dataTotalStoreWritesList = [
+      ["Tổng", "", "", ""],
+      ["Số Tiền Chạy(VNĐ)", "Click", "CĐ", "Tiền Hoa Hồng ($)"],
+    ];
+
     stores.forEach((storeName) => {
       const storeData = reportData[storeName];
       const previousStoreData = previousData[storeName];
 
       if (!storeData) {
         dataToWrite.push(["", "", "", "", "", ""]);
+        dataTotalStoreWritesList.push(["", "", "", ""]);
       } else {
+        dataTotalStoreWritesSummary.totalSpend += storeData.totalSpend;
+        dataTotalStoreWritesSummary.totalClicks += storeData.totalClicks;
+        dataTotalStoreWritesSummary.totalCommission += storeData.totalCommission;
+        dataTotalStoreWritesSummary.totalBenefit += storeData.totalBenefit;
+        dataTotalStoreWritesList.push([storeData.totalSpend, storeData.totalClicks, storeData.totalCommission, storeData.totalBenefit]);
         // Calculate changes from previous report
         let changeIndicator = "Mới"; // Default for new stores
-
         if (
           previousStoreData &&
           (storeData.totalSpend != previousStoreData.totalSpend ||
@@ -567,22 +557,6 @@ async function writeReportToSheet(
             changeIndicator,
             storeData.runner,
           ]);
-
-          const summaryStore = dataTotalStoreWrites.get(storeName);
-          if (summaryStore) {
-            summaryStore.totalSpend += storeData.totalSpend;
-            summaryStore.totalClicks += storeData.totalClicks;
-            summaryStore.totalCommission += storeData.totalCommission;
-            summaryStore.totalBenefit += storeData.totalBenefit;
-          } else {
-            dataTotalStoreWrites.set(storeName, {
-              totalSpend: storeData.totalSpend,
-              totalClicks: storeData.totalClicks,
-              totalCommission: storeData.totalCommission,
-              totalBenefit: storeData.totalBenefit,
-              runner: storeData.runner,
-            });
-          }
         } else {
           dataToWrite.push(["", "", "", "", "", ""]);
         }
@@ -617,105 +591,21 @@ async function writeReportToSheet(
       storeNamesData
     );
 
+    dataTotalStoreWritesSummary.totalBenefit = +dataTotalStoreWritesSummary.totalBenefit.toFixed(0);
+    dataTotalStoreWritesSummary.totalSpend = +dataTotalStoreWritesSummary.totalSpend.toFixed(0);
+    dataTotalStoreWritesSummary.totalClicks = +dataTotalStoreWritesSummary.totalClicks.toFixed(0);
+    dataTotalStoreWritesSummary.totalCommission = +dataTotalStoreWritesSummary.totalCommission.toFixed(0);
+
     // Write the report data starting from the determined column
     const endCol = getColumnLetter(getColumnIndex(nextColumnStart) + 5); // 6 columns total (0-5)
     const dataRange = `${sheetName}!${nextColumnStart}${startWriteRow + 1
       }:${endCol}${startWriteRow + 1 + dataToWrite.length}`;
-    const dataTotalStoreWritesList = [
-      ["Tổng", "", "", ""],
-      ["Số Tiền Chạy(VNĐ)", "Click", "CĐ", "Tiền Hoa Hồng ($)"],
-    ];
-    const dataTotalStoreWritesSummary = {
-      totalSpend: 0,
-      totalClicks: 0,
-      totalCommission: 0,
-      totalBenefit: 0,
-    }
-    dataTotalStoreWrites.forEach((value, key) => {
-      dataTotalStoreWritesList.push([value.totalSpend, value.totalClicks, value.totalCommission, value.totalBenefit]);
-      dataTotalStoreWritesSummary.totalSpend += value.totalSpend;
-      dataTotalStoreWritesSummary.totalClicks += value.totalClicks;
-      dataTotalStoreWritesSummary.totalCommission += value.totalCommission;
-      dataTotalStoreWritesSummary.totalBenefit += value.totalBenefit;
-    });
     dataTotalStoreWritesList.splice(2, 0, [dataTotalStoreWritesSummary.totalSpend, dataTotalStoreWritesSummary.totalClicks, dataTotalStoreWritesSummary.totalCommission, dataTotalStoreWritesSummary.totalBenefit]);
     await googleSheetsService.writeSheetValues(
       spreadsheetId,
       `${sheetName}!B1:E${dataTotalStoreWritesList.length + 1}`,
       dataTotalStoreWritesList
     );
-
-    // Write total data to urlData from Z column
-    if (dataUrl && rawData) {
-      const summaryByStoreMapClone = new Map(dataTotalStoreWrites);
-      const sourceSummaryData = [];
-      rawData.forEach((row, index) => {
-        const storeName = row[3];
-        if (!storeName || index <= 1) {
-          return;
-        }
-        const item = summaryByStoreMapClone.get(storeName);
-        if (item) {
-          sourceSummaryData.push([
-            item.totalSpend,
-            item.totalClicks,
-            item.totalCommission,
-            item.totalBenefit,
-          ]);
-          summaryByStoreMapClone.delete(storeName);
-        } else {
-          sourceSummaryData.push([
-            0,
-            0,
-            0,
-            0,
-          ]);
-        }
-      });
-      sourceSummaryData.unshift(...[
-        [
-          "Tổng Tiền Chạy(VNĐ)",
-          "Tổng Click",
-          "Tổng CĐ",
-          "Tổng Tiền Hoa Hồng ($)",
-        ],
-        [
-          dataTotalStoreWritesSummary.totalSpend,
-          dataTotalStoreWritesSummary.totalClicks,
-          dataTotalStoreWritesSummary.totalCommission,
-          dataTotalStoreWritesSummary.totalBenefit,
-        ]
-      ]);
-      const dataUrlSpreadsheetId = googleSheetsService.extractSheetId(dataUrl);
-      const dataUrlGid = googleSheetsService.extractGid(dataUrl);
-      const dataUrlSheetName =
-        (await googleSheetsService.getInfoSheetsFromUrl(dataUrl)).sheets?.find(
-          (sheet) => sheet.properties?.sheetId == dataUrlGid
-        )?.properties?.title || "Sheet1";
-      const dataUrlRange = `${dataUrlSheetName}!Z1:AC${sourceSummaryData.length}`;
-      console.log(`Writing summary data back to data URL at range: ${dataUrlRange}`);
-      await googleSheetsService.writeSheetValues(
-        dataUrlSpreadsheetId,
-        dataUrlRange,
-        sourceSummaryData
-      );
-      // format number for summary columns
-      await googleSheetsService.formatCells(
-        dataUrlSpreadsheetId,
-        dataUrlGid, // Use validated numeric sheet ID
-        1, // Start from row 1 (headers)
-        sourceSummaryData.length, // End at the last data row
-        25, // Column Z index
-        29, // Column AC index (exclusive)
-        {
-          numberFormat: {
-            type: "NUMBER",
-            pattern: "#,##0",
-          },
-        }
-      );
-    }
-
     console.log(`Writing data to range: ${dataRange}`);
     await googleSheetsService.writeSheetValues(
       spreadsheetId,
@@ -921,6 +811,7 @@ async function writeReportToSheet(
     console.log(
       `Successfully wrote report data to sheet starting at column ${nextColumnStart}`
     );
+
     return {
       success: true,
       startColumn: nextColumnStart,
@@ -930,6 +821,12 @@ async function writeReportToSheet(
       changesTracked: !!previousReport,
       previousReportDate: previousReport?.timestamp || null,
       changedStoresData: changedStoresData,
+      summaryData: {
+        totalSpend: dataTotalStoreWritesSummary.totalSpend - (totalExistedData ? fnumber(totalExistedData[1]) : 0),
+        totalClicks: dataTotalStoreWritesSummary.totalClicks - (totalExistedData ? fnumber(totalExistedData[2]) : 0),
+        totalCommission: dataTotalStoreWritesSummary.totalCommission - (totalExistedData ? fnumber(totalExistedData[3]) : 0),
+        totalBenefit: dataTotalStoreWritesSummary.totalBenefit - (totalExistedData ? fnumber(totalExistedData[4]) : 0),
+      }
     };
   } catch (error) {
     console.error("Error writing to Google Sheets:", error);
@@ -938,7 +835,7 @@ async function writeReportToSheet(
 }
 
 // Write summary report data to Google Sheets
-async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {
+async function writeSummaryReport(summaryReportUrl, summaryData, targetDate) {  
   try {
     const spreadsheetId = googleSheetsService.extractSheetId(summaryReportUrl);
     const gid = googleSheetsService.extractGid(summaryReportUrl);
@@ -1360,28 +1257,8 @@ async function generateReport(targetDate) {
         pair.reportUrl,
         reportData,
         targetDate,
-        index,
-        pair.dataUrl,
-        rawData
+        index
       );
-
-      // Calculate totals for this pair only from stores with changes (changeIndicator != "")
-      const pairTotals = {
-        totalSpend: 0,
-        totalClicks: 0,
-        totalCommission: 0,
-        totalBenefit: 0,
-      };
-
-      // Sum only from stores that have change indicators
-      if (result.changedStoresData && result.changedStoresData.length > 0) {
-        result.changedStoresData.forEach((storeData) => {
-          pairTotals.totalSpend += storeData.totalSpend;
-          pairTotals.totalClicks += storeData.totalClicks;
-          pairTotals.totalCommission += storeData.totalCommission;
-          pairTotals.totalBenefit += storeData.totalBenefit;
-        });
-      }
 
       results.push({
         pairIndex: index,
@@ -1395,7 +1272,6 @@ async function generateReport(targetDate) {
           (sum, store) => sum + store.records.length,
           0
         ),
-        ...pairTotals,
         ...result,
       });
 
@@ -1417,14 +1293,13 @@ async function generateReport(targetDate) {
           }, using default`
         );
       }
-
       // Add to summary data
       summaryData.push({
         pairIndex: index,
         reportUrl: pair.reportUrl,
         dataUrl: pair.dataUrl,
         sheetName: sheetName,
-        ...pairTotals,
+        ...result.summaryData
       });
     }
 
