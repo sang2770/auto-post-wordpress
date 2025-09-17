@@ -95,7 +95,7 @@ class AdsMappingService {
             if (!sheetId) {
                 throw new Error('Invalid destination sheet URL');
             }
-            const sourceRange = `${storeNameColumn}:${moneyColumn}`;
+            const sourceRange = `${storeNameColumn}:${clicksColumn}`;
             let rangeToRead = sourceRange;
             let destinationSheetName = '';
             if (gid && gid !== "0") {
