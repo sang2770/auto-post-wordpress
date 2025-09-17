@@ -55,8 +55,8 @@ class AdsMappingService {
                     const storeName = row[2]?.toString().trim()
                         .replace(/\s*-\s*[\d.]+$/, '')  // Remove existing pattern like " - 12.8"
                         .replace(/\s+[\d.]+$/, '');     // Remove pattern like " 12.8"
-                    const money = this.parseNumber(row[4].replace(/,/g, '.'));
-                    const clicks = this.parseNumber(row[3]);
+                    const money = this.parseNumberFromAds(row[4].replace(/,/g, '.'));
+                    const clicks = this.parseNumberFromAds(row[3]);
                     const unitMoney = row[5]?.toString().trim().toLowerCase();
 
                     if (storeName && (clicks > 0 || money > 0)) {
@@ -151,13 +151,13 @@ class AdsMappingService {
                         values: [
                         [
                             adsInfo.clicks +
-                            this.parseNumber(
+                            this.parseNumberFromSheet(
                                 this.getColumnValue(row, storeNameColumn, clicksColumn) || 0
                             ),
                         ],
                         ],
                     });
-                    const moneyData = this.parseNumber(
+                    const moneyData = this.parseNumberFromSheet(
                         this.getColumnValue(row, storeNameColumn, moneyColumn) || 0
                     );
                     let money = adsInfo.money + moneyData;
@@ -300,10 +300,18 @@ class AdsMappingService {
     /**
      * Helper method to parse number values
      */
-    parseNumber(value) {
+    parseNumberFromAds(value) {
         if (!value) return 0;
         const parsed = parseFloat(value.toString().replace(/[,\s]/g, ''));
         return isNaN(parsed) ? 0 : parsed;
+    }
+    
+    parseNumberFromSheet(val) {
+        if (typeof val === "string") {
+            const formatVal = val.replaceAll(/[.\sđ$]/g, "").replaceAll(",", ".");
+            return parseFloat(formatVal) || 0;
+        }
+        return parseFloat(val) || 0;
     }
 
     /**
