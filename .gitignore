@@ -6,6 +6,7 @@ node_modules/
 dist/
 build/
 temp/
-.env.*
+.env*
 keys/*
 data/*
+data2/*

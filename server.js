@@ -67,7 +67,9 @@ app.post('/api/configure', async (req, res) => {
         }
 
         // Save configuration with timestamp (store full URLs for direct use)
+        const existingConfig = (await storageService.getConfig()) || {};
         const configData = {
+            ...existingConfig,
             storeSheetsUrl,
             storeDetailSheetsUrl,
             storeSheetId,
