@@ -311,7 +311,7 @@ function processDataByStore(rawData, targetDate) {
     const clicks = parseDataNumber(row[15] || "0");
     const commission = parseDataNumber(row[16] || "0");
     const benefit = parseDataNumber(row[17] || "0");
-    const runner = row[12] || "";
+    const runner = row[13] || "";
     if (!storeData[storeName]) {
       storeData[storeName] = {
         records: [],
